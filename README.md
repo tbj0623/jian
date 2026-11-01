@@ -5,6 +5,8 @@
 
 **不联网也能用。** 网关是可选的：填了它，多「认照片」和「抄截图」两条路；不填，三张笺照常出结论。
 
+**直接体验：** [网页版](https://tbj0623.github.io/jian/) · [安卓 APK / AAB 下载](https://github.com/tbj0623/jian/releases/tag/v0.6.1) · [隐私政策](https://tbj0623.github.io/jian-privacy/)。当前为 GitHub 公开测试版，尚未通过 Google Play 上架审核。
+
 **开源：** 自有源码按 [MIT License](LICENSE) 发布；贡献说明见 [CONTRIBUTING.md](CONTRIBUTING.md)，安全报告见 [SECURITY.md](SECURITY.md)。模型密钥、Android 签名文件、真实用户备份及第三方网页抓取材料不属于公开源码。仓库不提供第三方模型额度或托管网关。
 
 - 版本 **0.6.1** / `versionCode 29` / `minSdk 24` / `targetSdk 36`
