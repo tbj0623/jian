@@ -2,7 +2,7 @@
 window.JIAN_CONFIG = {
   // 运行时里唯一一处版本号。「我的」页脚读它；npm run build-www 会拿它和
   // package.json、android/app/build.gradle 的 versionName 对账，不一致就不给出包。
-  version: "0.7.0",
+  version: "0.8.0",
   endpoint: "",
   key: "",
   // 隐私政策那一页的网址。**仓库里这条 URL 只有这一处定义**：「册」里那条入口（me.js 的

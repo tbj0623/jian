@@ -145,9 +145,69 @@ function bindSettings() {
 
 /* ==================== 全局搜索 ==================== */
 
-/** 一次搜遍五类东西。**不自己写一遍筛选**——每一类都调用它原本那个筛选函数
- *  （柜子问 closetQuery、言笺问 yanShown），否则就是第二份定义。
- *  这里只做一件事：把五类结果排成一组带标题的列表，命中处标 <mark>。 */
+/** 把搜索命中送到真正那一行。只改临时界面态，不改用户的数据，也不保存筛选。 */
+function landOnSearchHit(node, label) {
+  if (!node) { toast("这一条暂时没能定位，请在页面里查看"); return; }
+  const row = node.closest(".check, .slip-row, .digest-row, .rem-row") || node;
+  row.classList.add("search-landmark");
+  row.setAttribute("tabindex", "-1");
+  row.setAttribute("aria-label", "搜索定位：" + String(label || "").slice(0, 100));
+  if (row.scrollIntoView) row.scrollIntoView({ block: "center", behavior: "auto" });
+  row.focus({ preventScroll: true });
+}
+
+/** 言笺的筛选和归档属于视图态；清掉遮挡，仍使用原始数据下标定位。 */
+function openYanSearchHit(card) {
+  const index = (state.yanCards || []).indexOf(card);
+  if (index < 0) { toast("这条言笺已不在了"); return; }
+  yanFilters = { who: "", status: "", range: "" };
+  yanArchiveMode = !!card.archivedAt;
+  state.yanHideDone = false;
+  state.yanView = "kind";
+  const query = $("#yanSearch");
+  if (query) query.value = "";
+  show("yan"); // show 会重画，也可能把满七天的已办项自动收进归档
+  let target = $("#yanOut [data-edit=\"" + index + "\"]");
+  if (!target && card.archivedAt) {
+    yanArchiveMode = true;
+    renderYan();
+    target = $("#yanOut [data-edit=\"" + index + "\"]");
+  }
+  landOnSearchHit(target, card.line);
+}
+
+/** 笺册默认只摊前 12 张；搜索必须把命中的旧存档也显出来。 */
+function openAlbumSearchHit(slip) {
+  const index = (state.album || []).indexOf(slip);
+  if (index < 0) { toast("这张笺册存档已不在了"); return; }
+  albumView = "all";
+  albumAll = true;
+  albumOpen = [index];
+  show("me");
+  landOnSearchHit($("#album [data-slip=\"" + index + "\"]"), slip.quote || slip.text);
+}
+
+/** 摘录在言笺底部的折叠本里，先打开再按展示顺序定位。 */
+function openDigestSearchHit(digest) {
+  const sorted = (state.digest || []).slice().sort((a, b) => b.t - a.t);
+  const index = sorted.indexOf(digest);
+  if (index < 0) { toast("这句摘录已不在了"); return; }
+  digestOpen = true;
+  show("yan");
+  const drawer = $("#yanDigestBook");
+  if (drawer) drawer.open = true;
+  paintDigestBody();
+  landOnSearchHit($("#digestBody [data-dgcopy=\"" + index + "\"]"), digest.text);
+}
+
+function openReminderSearchHit(reminder) {
+  if (!(state.reminders || []).includes(reminder)) { toast("这条提醒已不在了"); return; }
+  show("yan-remind");
+  const row = $$("#remindBody [data-rem]").find((el) => el.dataset.rem === reminder.id);
+  landOnSearchHit(row, reminder.text);
+}
+
+/** 搜索六类数据；结果保留记录引用，点击时穿透到对应的一行。 */
 function searchAll(q) {
   const key = String(q || "").trim().toLowerCase();
   if (!key) return [];
@@ -164,15 +224,15 @@ function searchAll(q) {
 
   // 言笺
   const yans = (state.yanCards || []).filter((c) => hit(c.line) || hit(c.k) || hit(c.who));
-  if (yans.length) out.push({ title: "言笺", kind: "yan", items: yans.slice(0, 40).map((c) => ({
-    text: c.line, sub: [c.k, c.who, c.done ? "已办" : ""].filter(Boolean).join(" · "),
-    act: () => show("yan"),
+  if (yans.length) out.push({ title: "言笺", kind: "yan", total: yans.length, items: yans.slice(0, 40).map((c) => ({
+    text: c.line, sub: [c.k, c.who, c.done ? "已办" : "", c.archivedAt ? "已归档" : ""].filter(Boolean).join(" · "),
+    act: () => openYanSearchHit(c),
   })) });
 
   // 笺册
   const slips = (state.album || []).filter((a) => hit(a.quote) || hit(a.text));
-  if (slips.length) out.push({ title: "笺册", kind: "me", items: slips.slice(0, 30).map((a) => ({
-    text: a.quote || String(a.text).slice(0, 40), sub: dayStr(a.t), act: () => show("me"),
+  if (slips.length) out.push({ title: "笺册", kind: "me", total: slips.length, items: slips.slice(0, 30).map((a) => ({
+    text: a.quote || String(a.text).slice(0, 40), sub: dayStr(a.t), act: () => openAlbumSearchHit(a),
   })) });
 
   // 菜谱（内置 + 自己录的）
@@ -181,18 +241,18 @@ function searchAll(q) {
   const merged = new Map();
   dishHits.forEach((d) => merged.set(d.name, { text: d.name, sub: d.kind || "菜库", act: () => openDish(d.name) }));
   recipes.forEach((r) => merged.set(r.name, { text: r.name, sub: "自己录的菜谱", act: () => openDish(r.name) }));
-  if (merged.size) out.push({ title: "菜谱", kind: "wei", items: [...merged.values()].slice(0, 30) });
+  if (merged.size) out.push({ title: "菜谱", kind: "wei", total: merged.size, items: [...merged.values()].slice(0, 30) });
 
   // 摘录
   const digs = (state.digest || []).filter((d) => hit(d.text) || hit(d.from));
-  if (digs.length) out.push({ title: "摘录", kind: "yan", items: digs.slice(0, 30).map((d) => ({
-    text: d.text, sub: dayStr(d.t) + (d.from ? " · " + d.from : ""), act: () => show("yan"),
+  if (digs.length) out.push({ title: "摘录", kind: "yan", total: digs.length, items: digs.slice(0, 30).map((d) => ({
+    text: d.text, sub: dayStr(d.t) + (d.from ? " · " + d.from : ""), act: () => openDigestSearchHit(d),
   })) });
 
   // 提醒
   const rems = (state.reminders || []).filter((r) => hit(r.text));
-  if (rems.length) out.push({ title: "提醒", kind: "yan", items: rems.slice(0, 30).map((r) => ({
-    text: r.text, sub: whenText(r.at) + (r.done ? " · 已办" : ""), act: () => show("yan-remind"),
+  if (rems.length) out.push({ title: "提醒", kind: "yan", total: rems.length, items: rems.slice(0, 30).map((r) => ({
+    text: r.text, sub: whenText(r.at) + (r.done ? " · 已办" : ""), act: () => openReminderSearchHit(r),
   })) });
 
   return out;
@@ -211,11 +271,39 @@ function renderSearch() {
   }
   const run = () => doSearch(input.value);
   input.oninput = run;
-  input.onchange = run;
+  // 不监听 change：它在输入框失焦时触发，会把用户正要点击/聚焦的结果整片换掉。
+  input.onchange = null;
+  // 搜索框里按 ↓ / 回车可直达第一条；Esc 清词。结果本身仍是原生按钮。
+  input.onkeydown = (e) => {
+    // 中文输入法候选列表同样使用方向键和回车，组合输入期间绝不抢键。
+    if (e.isComposing || e.keyCode === 229) return;
+    const hits = $$("#searchBody .rowbtn[data-g]");
+    if (e.key === "Escape" && input.value) {
+      e.preventDefault(); input.value = ""; doSearch(""); return;
+    }
+    if (!hits.length) return;
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      hits[e.key === "ArrowDown" ? 0 : hits.length - 1].focus();
+    } else if (e.key === "Enter" && !e.isComposing) {
+      e.preventDefault(); hits[0].click();
+    }
+  };
+  body.onkeydown = (e) => {
+    const hits = $$("#searchBody .rowbtn[data-g]");
+    const i = hits.indexOf(document.activeElement);
+    if (i < 0) return;
+    if (e.key === "Escape") { e.preventDefault(); input.focus(); return; }
+    if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+    e.preventDefault();
+    const next = i + (e.key === "ArrowDown" ? 1 : -1);
+    if (next < 0) input.focus();
+    else hits[next % hits.length].focus();
+  };
   if (input.value.trim()) doSearch(input.value);
   else body.innerHTML = `<h1 class="sr-only">找东西</h1>
     <div class="empty"><div class="empty-印" aria-hidden="true">找</div>
-    搜一句话、一件衣服、一道菜、一个人名。<br>柜子、言笺、笺册、菜谱、摘录一次搜遍。</div>`;
+    搜一句话、一件衣服、一道菜、一个人名。<br>柜子、言笺、笺册、菜谱、摘录、提醒一次搜遍。<br>回车直达第一条，↓ 逐条查看。</div>`;
 }
 
 function doSearch(q) {
@@ -232,8 +320,11 @@ function doSearch(q) {
   }
   // 两处空态都补了那个只给读屏器的 h1（这一屏本来一个标题都没有）。
   // 有结果时也补上：同一个屏在两个分支里一个有标题一个没有，读屏器的标题列表会时有时无。
-  body.innerHTML = `<h1 class="sr-only">找东西</h1>` + groups.map((g) => `
-    <p class="tiny" style="margin:16px 0 8px">${esc(g.title)} · ${g.items.length}</p>
+  const shown = groups.reduce((n, g) => n + g.items.length, 0);
+  const total = groups.reduce((n, g) => n + (g.total || g.items.length), 0);
+  body.innerHTML = `<h1 class="sr-only">找东西</h1>
+    <p class="tiny" role="status" aria-live="polite">找到 ${total} 条 · ${groups.length} 类${total > shown ? `，先展示前 ${shown} 条` : ""}。按 ↓ 选结果，回车打开，Esc 返回搜索。</p>` + groups.map((g) => `
+    <p class="tiny" style="margin:16px 0 8px">${esc(g.title)} · ${g.items.length}${(g.total || g.items.length) > g.items.length ? ` / 共 ${g.total} 条` : ""}</p>
     <div class="list">${g.items.map((it, i) => `<button class="rowbtn" data-g="${esc(g.title)}" data-i="${i}">
       <span class="grow"><b>${markHit(it.text, key)}</b><span class="sub">${esc(it.sub || "")}</span></span>
     </button>`).join("")}</div>`).join("");

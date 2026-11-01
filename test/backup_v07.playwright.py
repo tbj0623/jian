@@ -91,7 +91,8 @@ with sync_playwright() as p:
     page.wait_for_function("() => pendingEncryptedBackup !== null")
     page.fill("#vaultPass", pwd)
     page.click("#vaultRestore")
-    page.wait_for_function("() => state.wardrobe[0].name==='私人蓝衬衫'", timeout=15000)
+    # 解密导入也会 reload：新文档状态尚未初始化时应继续等待而不是直接抛错。
+    page.wait_for_function("() => typeof state !== 'undefined' && state.wardrobe[0].name==='私人蓝衬衫'", timeout=15000)
     ck("正确密码还原原来的衣服与记录", page.evaluate("() => [state.wardrobe[0].name,state.yanCards[0].line]"),
        ["私人蓝衬衫","不能公开的句子"])
     ck("导入之后可以一键撤销", page.locator("#toasts .toast.act button").count() > 0)
@@ -104,7 +105,8 @@ with sync_playwright() as p:
     page.evaluate("show('me')")
     page.locator("#fileImport").set_input_files({"name":"old.json","mimeType":"application/json",
        "buffer":json.dumps(plain,ensure_ascii=False).encode("utf-8")})
-    page.wait_for_function("() => state.wardrobe[0].name==='老备份衬衫'", timeout=15000)
+    # 普通备份导入会 reload：先确认新文档已加载 state，避免导航瞬间误报 ReferenceError。
+    page.wait_for_function("() => typeof state !== 'undefined' && state.wardrobe[0].name==='老备份衬衫'", timeout=15000)
     ck("原有明文 JSON 导入继续兼容", page.evaluate("state.wardrobe[0].name"), "老备份衬衫")
     page.evaluate("show('me')")
     ck("切换文件后解密按钮不会恢复旧加密文件", page.locator("#vaultRestore").count() == 1 and page.locator("#vaultRestore").is_hidden())

@@ -11,7 +11,7 @@
    不一致直接不给打包）。版本一变，activate 就清掉旧缓存。
    `file://` 下根本不注册（见 app.js），双击打开这条老用法不受任何影响。
  */
-const VERSION = "0.7.0";
+const VERSION = "0.8.0";
 const CACHE = "jian-" + VERSION;
 
 /* 这份清单要和 build-www.mjs 的白名单对齐，npm run check 会盯。 */

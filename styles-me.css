@@ -232,6 +232,15 @@
 .vault-actions [hidden] { display: none; }
 #vaultStatus { margin-bottom: 0; }
 
+/* 全局搜索直达后，让目光和读屏器都落在同一条。只标焦点行，不改数据。 */
+.search-landmark, .search-landmark:focus {
+  outline: 2px solid var(--seal);
+  outline-offset: 3px;
+  border-radius: 8px;
+  scroll-margin-block: 90px;
+  background: rgba(157, 55, 48, .07);
+}
+
 /* 窄屏（320-360）上四个数字那排：格子太窄就把名字那一列压掉一点，
    字号跟着掉一档——数字仍然认得清，别让「笺册」两个字换成两行。 */
 @media (max-width: 359px) {

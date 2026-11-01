@@ -542,8 +542,11 @@ function bindDigestSheet() {
   if (!det) return;
   if (det.open) paintDigestBody();
   det.addEventListener("toggle", () => {
+    const wasOpen = digestOpen;
     digestOpen = det.open;
-    if (det.open) paintDigestBody();
+    // renderYan 已经按 open 态画过一遍时，原生 toggle 会异步再来一次。
+    // 重画会抹掉搜索刚定位的焦点，也会清掉正在写的输入，只有真从合到开才补画。
+    if (det.open && !wasOpen) paintDigestBody();
   });
 }
 

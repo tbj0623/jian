@@ -5,11 +5,11 @@
 
 **不联网也能用。** 网关是可选的：填了它，多「认照片」和「抄截图」两条路；不填，三张笺照常出结论。
 
-**直接体验：** [网页版](https://tbj0623.github.io/jian/) · [安卓 APK / AAB 下载](https://github.com/tbj0623/jian/releases/tag/v0.7.0) · [隐私政策](https://tbj0623.github.io/jian-privacy/)。当前为 GitHub 公开测试版，尚未通过 Google Play 上架审核。
+**直接体验：** [网页版](https://tbj0623.github.io/jian/) · [安卓 APK / AAB 下载](https://github.com/tbj0623/jian/releases/tag/v0.8.0) · [隐私政策](https://tbj0623.github.io/jian-privacy/)。当前为 GitHub 公开测试版，尚未通过 Google Play 上架审核。
 
 **开源：** 自有源码按 [MIT License](LICENSE) 发布；贡献说明见 [CONTRIBUTING.md](CONTRIBUTING.md)，安全报告见 [SECURITY.md](SECURITY.md)。模型密钥、Android 签名文件、真实用户备份及第三方网页抓取材料不属于公开源码。仓库不提供第三方模型额度或托管网关。
 
-- 版本 **0.7.0** / `versionCode 31` / `minSdk 24` / `targetSdk 36`
+- 版本 **0.8.0** / `versionCode 32` / `minSdk 24` / `targetSdk 36`
 - `index.html` 555 行：**25 个 `<script>`**、**7 个样式表**（另有 manifest + 2 个图标，共 10 个 `<link>`）、
   **17 屏**；**8 个 Capacitor 插件**
 - 菜库 **63 道**、成就 **30 枚**、桌面快捷方式 **5 枚**、长图 **6 种**（全部 1080×1920）
@@ -203,6 +203,8 @@ adb install -r android\app\build\outputs\apk\release\app-release.apk
 - **数据与备份**：导出 / 导入 JSON、隐私政策入口、清空本地数据
 - **算力网关地址**（可选）
 - **笺册**：一屏里 24 张存档，点一下再复制当时那张笺、能看全文、能单删、能按衣 / 味 / 言只看那一笺
+
+**全局搜索直达（0.8.0）**：在「册 → 找东西」搜衣服、言笺、笺册、菜谱、摘录或提醒，点任意结果会直接定位到那条内容，而不只是进入模块首页。归档言笺会打开归档；旧笺册自动摊开隐藏的存档和全文；摘录会展开折叠本；已办提醒也能找回。结果支持 ↓ / ↑、回车和 Esc（中文输入法组合输入期间不会抢键），命中项有焦点标识。若结果超过展示上限，会明示已展示数与总数；这只是搜索列表截断，数据不会删除。
 
 **数据保险箱（0.7.0）**：在「册 → 数据与备份」展开「加密备份」，输入至少 10 字符的密码并再次确认，导出只有持有密码才能打开的 JSON 文件。全部在本机通过 WebCrypto AES-256-GCM/PBKDF2-SHA-256 运行；每次使用独立随机盐与 IV。它保护的是**手动导出的文件**：不会自动上传、不会保存密码，本机 localStorage 仍按原来的方式存储。**密码忘记无法找回**，务必连密码和备份一起妥善保管（不要放在同一个公开位置）。
 

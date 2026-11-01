@@ -81,6 +81,8 @@ const V06 = [
   ['yan_v06', PY, ['test/yan_v06.playwright.py']],
   ['yan_edit', PY, ['test/yan_edit.playwright.py']],
   ['backup_v07', PY, ['test/backup_v07.playwright.py']],
+  // 搜索直达：归档/笺册折叠/摘录排序/提醒下标与方向键都在真实 DOM 上验证。
+  ['search_v08', PY, ['test/search_v08.playwright.py']],
   ['pu_v06', PY, ['test/stats_v06.playwright.py']],
   // 长图 lane：四张 1080×1920 的纸（单品 / 搭配 / 摘录 / 年度）画不画得出来，
   // 以及**夜里存出来还是白天的纸**——那一条只有真的画一遍、量一次像素才验得到。
