@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>笺 隐私政策</title>
+<meta name="description" content="笺（com.jian.app）不收集、不上传、不出售任何个人信息。你记录的一切只存在你自己的设备里。" />
+<link rel="canonical" href="https://tbj0623.github.io/jian-privacy/" />
+<!-- 不给 favicon 就等于让浏览器自己去要 /favicon.ico：公开页的控制台上挂一条 404
+     很难看，而 `test/privacy_page.playwright.py` 会把它量成一条失败。空 data: URI
+     既掐掉那次请求，也不引入任何外部资源（那条门同时盯着这个）。 -->
+<link rel="icon" href="data:," />
+<!--
+  这份文件就是发布到 GitHub Pages 的那一页；仓库里的这一份是它的**源**。
+  它和 docs/上架/商店材料.md 第 4 节由 test/store_claims.py 两头对：
+  改一处不改另一处就红。所以每条条款写成**一行**——文档里那些为了排版折的行，
+  在这里不许折，否则比较出来的是「换行」而不是「话变了」。
+  全站不引任何外部资源：没有 webfont、没有 CDN、没有 <script>、没有图片。
+  一个隐私政策页自己去打第三方请求，是本页面唯一会显得可笑的地方。
+-->
+<style>
+:root {
+  color-scheme: light;
+  --paper: #f4efe6;
+  --ink: #2a2723;
+  --ink-soft: #6b645b;
+  --line: #d9d0c2;
+  --seal: #b54a3c;
+  --cream: #faf7f1;
+  --lift: 0 1px 2px rgba(42, 39, 35, .04), 0 14px 28px -16px rgba(42, 39, 35, .18);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Source Han Sans SC", "Microsoft YaHei", sans-serif;
+  background:
+    linear-gradient(180deg, rgba(244, 239, 230, .92), rgba(244, 239, 230, .92)),
+    repeating-linear-gradient(90deg, rgba(42, 39, 35, .015) 0 1px, transparent 1px 7px);
+  background-color: var(--paper);
+  color: var(--ink);
+  line-height: 1.85;
+  -webkit-font-smoothing: antialiased;
+  padding: clamp(20px, 6vw, 72px) clamp(16px, 5vw, 40px) 64px;
+}
+.sheet {
+  max-width: 41rem;
+  margin: 0 auto;
+  background: var(--cream);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: var(--lift);
+  padding: clamp(24px, 5vw, 48px);
+}
+.mark {
+  width: 46px; height: 46px; border-radius: 10px;
+  border: 1.5px solid var(--seal); color: var(--seal);
+  display: grid; place-items: center;
+  font-size: 24px; line-height: 1; margin-bottom: 22px;
+}
+h1 { font-size: clamp(21px, 4.6vw, 27px); letter-spacing: .06em; font-weight: 600; }
+.lead {
+  margin-top: 14px; font-size: clamp(15px, 3.4vw, 17px);
+  color: var(--ink); font-weight: 500;
+}
+.rule { height: 1px; background: var(--line); margin: 26px 0 4px; border: 0; }
+ol#policy { list-style: none; counter-reset: cl; margin-top: 6px; }
+ol#policy li {
+  counter-increment: cl; position: relative;
+  padding: 16px 0 16px 2.9em;
+  border-bottom: 1px solid rgba(217, 208, 194, .55);
+  font-size: 15px;
+}
+ol#policy li:last-child { border-bottom: 0; }
+ol#policy li::before {
+  content: counter(cl, decimal-leading-zero);
+  position: absolute; left: 0; top: 17px;
+  font-size: 12px; letter-spacing: .04em; color: var(--seal);
+  font-variant-numeric: tabular-nums;
+}
+code { font-family: ui-monospace, Consolas, monospace; font-size: .92em; }
+.sig {
+  margin-top: 30px; padding-top: 22px; border-top: 1px solid var(--line);
+  display: grid; gap: 6px; font-size: 14px;
+}
+.sig dt { color: var(--ink-soft); }
+.sig dd { color: var(--ink); }
+.sig a { color: var(--seal); text-decoration: underline; text-underline-offset: 3px; }
+.note { margin-top: 26px; }
+.note h2 { font-size: 13px; font-weight: 600; letter-spacing: .1em; color: var(--ink-soft); }
+.note p { margin-top: 8px; font-size: 13.5px; color: var(--ink-soft); }
+.note p.en { margin-top: 10px; }
+</style>
+</head>
+<body>
+<main class="sheet">
+  <div class="mark" aria-hidden="true">笺</div>
+  <h1>笺 隐私政策</h1>
+  <p class="lead">笺不收集、不上传、不出售任何个人信息。</p>
+  <hr class="rule" />
+  <ol id="policy">
+    <li>你记录的一切（衣服、柜子、菜单、忌口、聊天记录、笺点余额）只保存在你自己设备的应用私有存储里。卸载应用即随之删除。</li>
+    <li>应用不需要账号。除了你在定提醒时才会被问到的通知权限，不申请相机、麦克风、通讯录、位置、存储等任何需要用户授权的权限。选照片走系统图片选择器，你选哪张我们才拿到哪张。</li>
+    <li>应用声明五条权限：INTERNET（只在你自行填写模型接口时用于发出请求）、VIBRATE（触感反馈）、POST_NOTIFICATIONS（只在你自己定了提醒时用来在到点弹一条通知）、RECEIVE_BOOT_COMPLETED、WAKE_LOCK（重开机后把你定过的提醒重新排上，不读不写任何数据）。前两条之外都不涉及任何个人信息，也不申请其它权限。</li>
+    <li>应用内置的判定是本地规则，不联网即可完成。离线可用是实测过的。</li>
+    <li>备份文件（导出/导入）由你自己保存和分发，我们不接触。</li>
+    <li>可选功能：如果你在「册」里自行填写了外部模型接口地址，则你当次贴入的文字、以及你主动拍照或选择的那张照片会发送到你填写的那个地址。照片在离开设备前先在机器里缩小（认衣服那张最长边不超过 512 像素，抄聊天截图那张不超过 768 像素）。我们不代理该请求、不留存内容、也不知晓该地址是什么；不填写时应用全程不发起任何网络请求，照片只在设备内读取像素，不外传。</li>
+    <li>请注意你自己填写的地址：填 <code>https://</code> 时传输是加密的；填 <code>http://</code>（例如你自己局域网里的一台电脑）时，那一次传输不加密——本应用为了让用户自建的本地网关可用，允许了明文流量。建议只填写你自己控制的地址，或只在你自己的局域网内使用。</li>
+    <li>本应用不含广告，不集成任何统计或崩溃上报 SDK，因此不存在自动收集的设备标识。</li>
+    <li>数据可随时清除：「册 → 清空本地数据」，并保留一次反悔。</li>
+  </ol>
+  <dl class="sig">
+    <div>
+      <dt>联系方式</dt>
+      <dd><a href="mailto:1193046937@qq.com">1193046937@qq.com</a></dd>
+    </div>
+    <div>
+      <dt>更新日期</dt>
+      <dd>2026 年 10 月 18 日</dd>
+    </div>
+  </dl>
+  <section class="note">
+    <h2>关于本页面</h2>
+    <p>本页面不加载任何第三方脚本、字体、图片，也不放 Cookie；托管方（GitHub Pages）仍会按它自己的规则记录访问日志（含 IP），那一段与笺无关——笺没有服务器，也读不到这些。</p>
+    <p class="en">Jian collects, uploads and sells no personal information; everything you record stays in this app's private storage on your own device, and is removed when you uninstall it.</p>
+  </section>
+</main>
+</body>
+</html>

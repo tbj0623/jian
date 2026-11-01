@@ -1,0 +1,267 @@
+/* 笺 · 衣笺 lane 的样式（单品档案 / 搭配册 / 愿望单 / 衣柜统计）
+   ─────────────────────────────────────────────────────────────
+   这一份只服务 wardrobe.js 画出来的那几块，规矩与 styles.css / styles-v06.css 一致：
+
+   - 颜色一律从变量取（--ink / --paper / --seal / --line …），这里一个色值都不写死；
+     因此夜里的纸自动跟着翻，不需要第二份深色规则。
+   - 新增控件的触摸高度 ≥44px：日历格、日历翻月、场合签、愿望动作、搭配动作、筛选签、
+     统计里的名单行。老的 .chip 是 34px 的历史遗留，新的一律在下面抬到 44。
+   - 阴影只有 --lift，圆角只有 --radius（小的内件用 10–14px）。
+   - 动效 ≤400ms，且 :root.no-motion 下由 styles-v06.css 那条全局规则统一关掉。
+
+   对比度（WCAG AA，实测）：--ink 压 --paper 12.98、压 --cream 13.90；--ink-soft 压
+   --cream 5.46、压 --paper-2 4.61；--cream 压 --seal 4.90。所以：
+   实底印章红上只写 --cream，浅纸上只用 --ink / --ink-soft，--line 永远不承载文字。
+*/
+
+/* ==================== 单品档案 ==================== */
+
+/* 一块大图：照片或主色。它占这一页的第一眼，不是一个 72px 的小方块。 */
+.yi-hero {
+  position: relative;
+  height: 38vh; min-height: 200px; max-height: 300px;
+  margin: 4px 0 16px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  overflow: hidden;
+  background: var(--paper-2);
+  box-shadow: var(--lift);
+}
+.yi-hero-fill { position: absolute; inset: 0; display: block; }
+.yi-hero-fill img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* 一枚压在照片角上的小印：装饰，读屏器跳过。
+   底色用 --ink / 字用 --cream（夜里的纸会整个翻过来，而 --cap-bg 是"压在照片上的暗底"，
+   它不翻 —— 夜纸里再用它就成了深底压深字）。 */
+.yi-hero-mark {
+  position: absolute; right: 14px; top: 14px;
+  width: 34px; height: 34px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--ink); color: var(--cream);
+  font-size: calc(15px * var(--fs-scale, 1)); line-height: 1;
+  transform: rotate(-8deg);
+}
+
+/* 名字是这一页的标题：宋体大字，和「先问柜子」同一个层级感。 */
+.yi-name {
+  font-size: calc(30px * var(--fs-scale, 1)); line-height: 1.28; font-weight: 500;
+  letter-spacing: .01em; margin: 2px 0 6px;
+}
+.yi-meta { margin: 0; letter-spacing: .04em; }
+.yi-wear-line { margin-top: 12px; line-height: 1.7; }
+.yi-wear-gap { margin-top: 4px; line-height: 1.7; }
+.yi-note { margin-top: 10px; line-height: 1.7; }
+.yi-bought { margin: -4px 0 12px; line-height: 1.6; }
+
+/* 单次成本那一块：一枚大数字 + 一句算式 + 一句判词。三层次，不堆在一起。 */
+.yi-cost {
+  margin-top: 16px; padding: 16px 18px 18px;
+  border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--cream); box-shadow: var(--lift);
+}
+.yi-cost-num {
+  display: flex; align-items: baseline; gap: 8px;
+  margin: 0 0 8px; min-height: 40px;
+}
+.yi-cost-num b {
+  font-size: calc(36px * var(--fs-scale, 1)); font-weight: 500; line-height: 1.1;
+  font-variant-numeric: tabular-nums; letter-spacing: .01em;
+}
+.yi-cost-num small { font-size: calc(12px * var(--fs-scale, 1)); color: var(--ink-soft); letter-spacing: .1em; }
+.yi-cost-how { margin: 0 0 8px; line-height: 1.7; }
+.yi-cost-line { margin: 0; font-size: calc(13px * var(--fs-scale, 1)); line-height: 1.75; color: var(--ink); }
+/* 判词：一句人话，压在一条细线下面，像杂志里的编者按 */
+.yi-verdict {
+  margin: 12px 0 0; padding-top: 10px;
+  border-top: 1px solid var(--line);
+  font-size: calc(16px * var(--fs-scale, 1)); line-height: 1.65;
+}
+
+.yi-item-acts { margin-top: 14px; }
+
+/* ==================== 穿着日历 ==================== */
+
+.yi-cal-host { margin-top: 12px; }
+.yi-cal-host[hidden] { display: none; }
+.yi-cal {
+  padding: 14px;
+  border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--cream);
+}
+.yi-cal-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; margin-bottom: 10px;
+}
+.yi-cal-title { font-size: calc(12px * var(--fs-scale, 1)); color: var(--ink-soft); letter-spacing: .06em; text-align: center; flex: 1; }
+.yi-cal-nav {
+  width: 44px; height: 44px; flex: none;
+  display: grid; place-items: center;
+  border: 1px solid var(--line); border-radius: 50%;
+  background: transparent; color: var(--ink);
+  font: inherit; font-size: calc(18px * var(--fs-scale, 1)); line-height: 1; cursor: pointer;
+}
+.yi-cal-nav[aria-disabled="true"] { color: var(--ink-soft); background: var(--paper-2); }
+/* 七列一行日历。每格最小 44px 高——「可点」得先是真的，然后才谈好看。 */
+.yi-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.yi-cal-head {
+  text-align: center; font-size: calc(11px * var(--fs-scale, 1)); color: var(--ink-soft);
+  letter-spacing: .06em; padding: 2px 0 6px;
+}
+.yi-cal-pad { min-height: 44px; }
+.yi-cal-day {
+  min-height: 44px; min-width: 0;
+  display: grid; place-items: center;
+  border: 1px solid transparent; border-radius: 10px;
+  background: transparent; color: var(--ink);
+  font: inherit; font-size: calc(13px * var(--fs-scale, 1)); cursor: pointer;
+  font-variant-numeric: tabular-nums;
+  transition: background-color .12s var(--ease-out);
+}
+/* 穿过的那天：实底印章红 + --cream 的字（4.90:1，过 AA） */
+.yi-cal-day.on { background: var(--seal); border-color: var(--seal); color: var(--cream); }
+.yi-cal-day.today { border-color: var(--ink); }
+.yi-cal-day.on.today { border-color: var(--ink); }
+.yi-cal-day.future { color: var(--ink-soft); }        /* 5.46:1，仍过 AA */
+.yi-cal-day:active { transform: scale(.96); }
+.yi-cal-day:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+.yi-cal-note { margin: 10px 0 0; line-height: 1.7; }
+
+/* ==================== 搭配册 ==================== */
+
+.yi-filter { margin-top: 10px; }
+.yi-outfit-card { text-align: left; }
+.yi-outfit-open {
+  display: block; width: 100%; min-height: 44px;
+  padding: 0; border: none; background: none;
+  font: inherit; color: var(--ink); text-align: left; cursor: pointer;
+}
+.yi-outfit-top {
+  display: flex; flex-wrap: wrap; align-items: baseline;
+  justify-content: space-between; gap: 4px 10px;
+}
+.yi-outfit-top b { font-size: calc(16px * var(--fs-scale, 1)); font-weight: 500; }
+.yi-swatches { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
+.yi-swatch {
+  width: 44px; height: 44px; flex: none;
+  padding: 0;
+  border: 1px solid var(--line); border-radius: 10px;
+  overflow: hidden; display: block; cursor: pointer;
+  background: var(--paper-2);
+}
+.yi-swatch img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.yi-miss { margin-left: 2px; line-height: 1.6; }
+.yi-outfit-acts { margin: 10px 0 0; justify-content: flex-end; flex-wrap: wrap; }
+
+/* 子页里那一套的详情：一排竖卡片，每件一张 */
+.yi-pieces { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 14px; }
+.yi-piece {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 8px; min-height: 44px;
+  border: 1px solid var(--line); border-radius: 14px;
+  background: var(--cream); color: var(--ink);
+  font: inherit; text-align: left; cursor: pointer;
+}
+.yi-piece-c {
+  display: block; width: 100%; aspect-ratio: 1;
+  border-radius: 10px; overflow: hidden; background: var(--paper-2);
+}
+.yi-piece-c img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.yi-piece-n {
+  font-size: calc(13px * var(--fs-scale, 1)); line-height: 1.4;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* 挑几件搭一套：就地摊开的选择面板，复用柜砖的形状（.item 给的是格子与底）
+   注意 .item 自带 .tag 与 ::after 渐变；这一版把色块铺满整格（.yi-pick-c 绝对定位），
+   名字仍然走 .item .tag 那颗不透明胶囊，对比度是常数。 */
+.yi-pick { margin-top: 10px; }
+.yi-pick-item {
+  display: block; padding: 0; font: inherit; text-align: left;
+  color: var(--ink); cursor: pointer;
+}
+.yi-pick-c {
+  display: block; position: absolute; inset: 0; overflow: hidden;
+}
+.yi-pick-c img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* 选中的那一格：印章红描边 + 名字底变实底红。两个面同时变，不只靠一种线索。 */
+.yi-pick-item[aria-pressed="true"] { outline: 2px solid var(--seal); outline-offset: 2px; }
+.yi-pick-item[aria-pressed="true"] .tag { background: var(--seal); }
+.yi-pick-count { margin: 10px 0 6px; min-height: 20px; line-height: 1.6; }
+
+/* ==================== 愿望单 ==================== */
+
+.yi-wish-card { text-align: left; }
+.yi-wish-card.ripe { border-left: 3px solid var(--seal); }
+.yi-wish-top { margin: 0 0 6px; }
+.yi-wish-top b { font-size: calc(16px * var(--fs-scale, 1)); font-weight: 500; }
+.yi-wish-state { line-height: 1.7; }
+.yi-wish-acts { margin: 10px 0 0; justify-content: flex-end; flex-wrap: wrap; }
+
+/* 页签上的「冷静期到了」：一枚印章红的小数字。用它而不是改 #yiWishCnt——
+   那个数字说的是「有几件在想」，这一枚说的是「有几件该回来看一眼」，
+   两件事各自有各自的数，挤进同一个字符里迟早要打架。
+   数字由 CSS 从 data-ripe 读出来（不新增 DOM，index.html 与 wire.js 都是 Lead 的）；
+   ::before 是空的，页签自己的 ::after 已经给了选中下划线，不冲突。 */
+#yiTabs button[data-ripe]::before {
+  content: attr(data-ripe);
+  /* top/right 都**在按钮框里**：.tabs 是 overflow-x:auto 的滚动容器，
+     探出容器上边沿的部分会被裁掉（实测只留下半个红块）。所以贴着右上角摆，
+     那一块本来就是空的——文字在垂直中间。 */
+  position: absolute; top: 3px; right: -4px;
+  min-width: 16px; height: 16px; padding: 0 4px;
+  border-radius: 999px;
+  background: var(--seal); color: var(--cream);
+  /* 一圈纸色描边把它和页签上那个灰数字分开：屏幕上同时出现两个数，
+     必须一眼看得出哪个是「该回来看一眼」。 */
+  box-shadow: 0 0 0 2px var(--paper);
+  font-size: calc(10px * var(--fs-scale, 1)); line-height: 16px; text-align: center;
+  letter-spacing: 0; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+/* ==================== 衣柜统计 ==================== */
+
+.yi-block-title { margin-top: 16px; }
+.yi-stat-line {
+  margin: 6px 0 0; font-size: calc(13px * var(--fs-scale, 1)); line-height: 1.8; color: var(--ink);
+}
+.yi-stat-line b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.yi-thin { margin-top: 6px; line-height: 1.7; }
+
+/* 最常穿 / 最久没穿：一行一件，整行可点进档案 */
+.yi-top3 { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; }
+.yi-top3-row {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; min-height: 44px;
+  padding: 6px 4px;
+  border: none; border-radius: 10px; background: none;
+  font: inherit; color: var(--ink); text-align: left; cursor: pointer;
+}
+.yi-top3-row:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+.yi-dot {
+  width: 14px; height: 14px; flex: none;
+  border-radius: 50%; border: 1px solid var(--line);
+}
+.yi-top3-name {
+  flex: 1; min-width: 0; font-size: calc(14px * var(--fs-scale, 1));
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ==================== 新增控件的触摸高度 ====================
+   .chip 出厂是 34px（styles.css 的历史遗留），这一版新增的签一律抬到 44。
+   只管本 lane 画出来的那几组，不动全仓的 .chip。 */
+.yi-occ, .yi-filter .chip, .yi-wish-acts .chip, .yi-outfit-acts .chip {
+  min-height: 44px;
+  display: inline-flex; align-items: center;
+}
+
+/* 柜子操作条上那枚「档案」：它是进单品档案唯一的可见入口（长按在 WebView 里不可发现），
+   所以它得是这一条里最好按的一枚。 */
+.yi-archive {
+  min-height: 44px; min-width: 56px;
+  display: inline-flex; align-items: center; justify-content: center;
+  flex: none; margin-left: auto;
+}
+
+/* 场合签排成两行时不要贴在一起 */
+#itemOcc { gap: 8px; }

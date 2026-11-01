@@ -1,0 +1,40 @@
+{
+  "name": "jian",
+  "version": "0.6.1",
+  "private": true,
+  "description": "笺 - H5 + Capacitor 双端工程（Android APK / iOS）",
+  "type": "module",
+  "scripts": {
+    "test": "node scripts/test.mjs fast",
+    "test:gate": "node scripts/test.mjs gate",
+    "test:e2e": "node scripts/test.mjs e2e",
+    "test:v06": "node scripts/test.mjs v06",
+    "test:pkg": "node scripts/test.mjs pkg",
+    "test:ship": "node scripts/test.mjs ship",
+    "audit": "node scripts/test.mjs audit",
+    "check": "node scripts/test.mjs all",
+    "build-www": "node scripts/build-www.mjs",
+    "cap:sync": "npm run build-www && npx cap sync android",
+    "android": "npm run build-www && npx cap sync android && cd android && cmd /c .\\gradlew.bat assembleDebug",
+    "release": "npm run build-www && npx cap sync android && cd android && cmd /c .\\gradlew.bat assembleRelease bundleRelease",
+    "assets": "npx @capacitor/assets generate --android",
+    "gateway": "python backend/gateway.py",
+    "gateway:lan": "cmd /c \"set JIAN_HOST=0.0.0.0&& python backend/gateway.py\"",
+    "providers": "python test/providers_live.py"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/core": "^8.5.2",
+    "@capacitor/filesystem": "^8.1.3",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/local-notifications": "^8.3.1",
+    "@capacitor/preferences": "^8.0.1",
+    "@capacitor/share": "^8.0.2",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.2"
+  }
+}

@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <!-- 双指缩放以前是关掉的（maximum-scale=1 + user-scalable=no）。那两样关掉之后，
+       这一屏所有被省略号吃掉的字、所有压在 72px 圆环里的三个字，用户唯一的自救办法就没有了；
+       WCAG 1.4.4 也把这判为不合格。缩放只是放大，不会重排布局，所以以前锁它挡的那个
+       「一放大就露出纸边」的问题本来就不会发生（窄屏那一组溢出断言照旧在量）。 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>笺</title>
+  <meta name="theme-color" content="#f4efe6" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="description" content="一张短笺，一次决定。" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="icons/favicon.png" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles-v06.css" />
+  <link rel="stylesheet" href="styles-yi.css" />
+  <link rel="stylesheet" href="styles-wei.css" />
+  <link rel="stylesheet" href="styles-yan.css" />
+  <link rel="stylesheet" href="styles-stats.css" />
+  <link rel="stylesheet" href="styles-me.css" />
+</head>
+<body>
+  <!-- 等网关的那层。以前整屏只有一个静止的「笺」字、还把点击全吞掉：
+       模型认一件实测要 2.6~14 秒，这段时间看起来和死机一模一样。
+       现在说得出在等什么，并且给一个「先不等了」——本地引擎立刻就能出判定。 -->
+  <div class="veil" id="veil" role="status" aria-live="polite">
+    <div class="veil-card">
+      <span class="veil-mark" aria-hidden="true">笺</span>
+      <span class="veil-what" id="veilWhat">正在写这张笺…</span>
+      <button type="button" class="btn veil-off" id="veilOff" hidden>先不等了</button>
+    </div>
+  </div>
+  <!-- 提示的落点：一个**常驻**的空容器。live region 要活在文字变化之前，
+       每次新造一个带 aria-live 的节点等于没念（见 ui.js 的 toastHost）。
+       .toast 自己是 fixed 定位，所以这个容器不需要任何样式。 -->
+  <div id="toasts" role="status" aria-live="polite"></div>
+ <div id="app">
+    <!-- ==================== 今日 ====================
+         这一屏是 v0.6.0 的入口，也是「为什么明天还回来」的答案。
+         硬限制：**永远只显示三件事**。多一件就变成仪表盘，那和「少」是反的。
+         三件事分别来自三个模块（衣/味/言），由 today.js 的 renderToday() 每天重算。 -->
+    <section class="screen" id="today" role="region" aria-label="今日" data-wm="今">
+      <div class="topbar">
+        <div>
+          <p class="brand"><span class="seal-mark" aria-hidden="true">今</span>今日</p>
+          <h1 class="serif mark" id="todayTitle">今天</h1>
+        </div>
+        <span class="tiny" id="todayDate"></span>
+      </div>
+      <div class="streak" id="todayStreak" style="margin:14px 0 18px"></div>
+      <div class="card sheet today-sheet" id="todaySheet"></div>
+      <div class="row" style="margin-top:16px">
+        <button class="btn ghost" id="todayJian">再抽一笺</button>
+        <button class="btn ghost" id="todayYear">我的这一年</button>
+      </div>
+      <div class="space"></div>
+      <p class="tiny">往年今日</p>
+      <div class="card" id="todayPast" style="margin-top:8px"></div>
+      <div class="space"></div>
+      <p class="tiny">笺谱</p>
+      <div class="stat-grid" id="todayStats" style="margin-top:8px"></div>
+      <div class="space"></div>
+      <div class="list" id="todayLinks"></div>
+    </section>
+
+    <!-- ==================== 笺谱 ====================
+         统计 / 成就 / 年度总结的家。底栏不占位（一周看一次就够），
+         从「今日」那一屏顶部进。 -->
+    <section class="screen" id="pu" role="region" aria-label="笺谱" data-wm="谱">
+      <div class="topbar">
+        <div>
+          <p class="brand"><span class="seal-mark" aria-hidden="true">谱</span>笺谱</p>
+          <h1 class="serif mark">用过的日子</h1>
+        </div>
+        <button class="chip" id="backPu">返回</button>
+      </div>
+      <div id="puHeat"></div>
+      <div class="space"></div>
+      <div id="puBody"></div>
+    </section>
+
+    <!-- ==================== 衣笺细节页 ==================== -->
+    <section class="screen" id="yi-item" role="region" aria-label="单品">
+      <div class="topbar">
+        <p class="brand"><span class="seal-mark" aria-hidden="true">衣</span>单品</p>
+        <button class="chip" id="backItem">返回</button>
+      </div>
+      <div id="itemBody"></div>
+    </section>
+
+    <section class="screen" id="yi-outfit" role="region" aria-label="搭配">
+      <div class="topbar">
+        <p class="brand"><span class="seal-mark" aria-hidden="true">衣</span>搭配</p>
+        <button class="chip" id="backOutfit">返回</button>
+      </div>
+      <div id="outfitBody"></div>
+    </section>
+
+    <!-- ==================== 味笺细节页 ==================== -->
+    <section class="screen" id="wei-dish" role="region" aria-label="菜谱">
+      <div class="topbar">
+        <p class="brand"><span class="seal-mark" aria-hidden="true">味</span>菜谱</p>
+        <button class="chip" id="backDish">返回</button>
+      </div>
+      <div id="dishBody"></div>
+    </section>
+
+    <section class="screen" id="wei-week" role="region" aria-label="这周">
+      <div class="topbar">
+        <p class="brand"><span class="seal-mark" aria-hidden="true">味</span>这周</p>
+        <button class="chip" id="backWeek">返回</button>
+      </div>
+      <div id="weekBody"></div>
+    </section>
+
+    <!-- ==================== 言笺：提醒总览 ==================== -->
+    <section class="screen" id="yan-remind" role="region" aria-label="提醒">
+      <div class="topbar">
+        <p class="brand"><span class="seal-mark" aria-hidden="true">言</span>提醒</p>
+        <button class="chip" id="backRemind">返回</button>
+      </div>
+      <div id="remindBody"></div>
+    </section>
+
+    <!-- ==================== 设置 ==================== -->
+    <section class="screen" id="settings" role="region" aria-label="设置">
+      <div class="topbar">
+        <p class="brand"><span class="seal-mark" aria-hidden="true">册</span>设置</p>
+        <button class="chip" id="backSettings">返回</button>
+      </div>
+      <h1 class="serif mark">把笺调顺</h1>
+      <div class="space"></div>
+      <div id="settingsBody"></div>
+    </section>
+
+    <!-- ==================== 成就 ==================== -->
+    <section class="screen" id="badges" role="region" aria-label="章">
+      <div class="topbar">
+        <p class="brand"><span class="seal-mark" aria-hidden="true">谱</span>章</p>
+        <button class="chip" id="backBadges">返回</button>
+      </div>
+      <h1 class="serif mark">一枚一枚攒</h1>
+      <p class="tiny" id="badgeNote"></p>
+      <div class="space"></div>
+      <div class="badge-grid" id="badgeGrid"></div>
+    </section>
+
+    <!-- ==================== 年度总结 ==================== -->
+    <section class="screen" id="year" role="region" aria-label="这一年">
+      <div class="topbar">
+        <p class="brand"><span class="seal-mark" aria-hidden="true">谱</span>这一年</p>
+        <button class="chip" id="backYear">返回</button>
+      </div>
+      <div id="yearBody"></div>
+    </section>
+
+    <!-- ==================== 全局搜索 ==================== -->
+    <section class="screen" id="search" role="region" aria-label="找东西">
+      <div class="topbar">
+        <p class="brand"><span class="seal-mark" aria-hidden="true">册</span>找东西</p>
+        <button class="chip" id="backSearch">返回</button>
+      </div>
+      <input type="text" id="globalSearch" class="search" placeholder="搜柜子、言笺、笺册、菜谱、摘录"
+             autocomplete="off" aria-label="全局搜索" />
+      <div class="hist-chips" id="searchHist" style="margin-top:10px"></div>
+      <div id="searchBody" style="margin-top:14px"></div>
+    </section>
+
+    <section class="screen" id="onboard">
+      <div class="onboard-hero">
+        <p class="brand vert">JIAN</p>
+        <h1 class="serif onboard-jian">笺</h1>
+      </div>
+      <p class="lead">一张短笺，一次决定。<br>买衣、下筷、说过的话。</p>
+      <div class="space"></div>
+      <p class="tiny">打开时，先看见哪一笺？</p>
+      <!-- 三张选择卡以前是带 onclick 的 <div>：读屏器里它们根本不存在，键盘 Tab 也走不到，
+           而这是引导页唯一必须回答的问题（打开即是哪一笺）。做成 <button> 并带 aria-pressed。
+           <p> 换成 <span>：按钮的内容模型不许有段落，而样式靠 .tiny 走（见 styles.css）。 -->
+      <div class="stack">
+        <button type="button" class="card mode-card on" data-home="yi" aria-pressed="true"><b class="serif"><span class="seal-mark" aria-hidden="true">衣</span>衣笺</b><span class="tiny">买之前，先问柜子</span></button>
+        <button type="button" class="card mode-card" data-home="wei" aria-pressed="false"><b class="serif"><span class="seal-mark" aria-hidden="true">味</span>味笺</b><span class="tiny">这桌人的口味，叠成一张笺</span></button>
+        <button type="button" class="card mode-card" data-home="yan" aria-pressed="false"><b class="serif"><span class="seal-mark" aria-hidden="true">言</span>言笺</b><span class="tiny">说过的话，落成一张笺</span></button>
+      </div>
+      <div class="space"></div>
+      <button class="btn wide" id="go">进入</button>
+    </section>
+
+    <section class="screen" id="yi" role="region" aria-label="衣笺" data-wm="衣">
+      <div class="topbar">
+        <div>
+          <p class="brand"><span class="seal-mark" aria-hidden="true">衣</span>衣笺</p>
+          <h1 class="serif mark">先问柜子</h1>
+        </div>
+        <span class="tiny" id="engineHint"></span>
+      </div>
+      <!-- 衣笺从「一个动作」变成「一个地方」：过笺（判断要不要买）/ 柜子（我的衣服）/
+           搭配（颜色搭不搭）/ 愿望（想买但还在冷静期）。
+           四块共用同一份数据，切页签不换屏——所以返回键不会在页签之间乱跳。 -->
+      <div class="tabs" id="yiTabs" role="tablist" aria-label="衣笺的分区">
+        <button role="tab" data-yitab="pass" aria-selected="true">过笺</button>
+        <button role="tab" data-yitab="closet" aria-selected="false">柜子<span class="cnt" id="yiClosetCnt"></span></button>
+        <button role="tab" data-yitab="outfit" aria-selected="false">搭配<span class="cnt" id="yiOutfitCnt"></span></button>
+        <button role="tab" data-yitab="wish" aria-selected="false">愿望<span class="cnt" id="yiWishCnt"></span></button>
+      </div>
+      <div id="yiPanePass">
+        <button type="button" class="hero-cloth asking" id="heroCloth" aria-label="选一张想买的衣服照片">
+          <span class="hero-inner" id="heroInner"></span>
+          <span class="ask" id="heroAsk">
+            <b>点这张纸，放照片</b><span>相册里那张、刚截图的那张都行</span>
+          </span>
+          <span class="cap serif" id="heroName"></span>
+        </button>
+        <p class="lead">这件，柜里已经有了吗？</p>
+        <div class="chips" id="yiCats" style="margin:12px 0 14px"></div>
+        <div class="row">
+          <button class="btn ghost" id="scanBtn">过笺 · 相册</button>
+          <button class="btn ghost" id="camBtn">过笺 · 拍照</button>
+        </div>
+        <p class="tiny" id="lastReportLink" style="margin-top:10px"></p>
+        <div class="space"></div>
+        <!-- 过笺这一页也要有一句「柜子现在什么状态」：判定的前提是柜子里的东西，
+             不看一眼柜子就判，判出来的东西没法信。 -->
+        <p class="tiny" id="closetNote"></p>
+      </div>
+
+      <div id="yiPaneCloset" hidden>
+        <div class="bar">
+          <div class="chips">
+            <button class="chip on" data-closet="freq" aria-pressed="true">常穿</button>
+            <button class="chip" data-closet="idle">久未穿</button>
+            <button class="chip" data-closet="new">最近买</button>
+            <button class="chip" data-closet="cpw">单次成本</button>
+          </div>
+          <button class="chip" id="editCloset">整理</button>
+        </div>
+        <div class="bar" style="margin-top:-2px">
+          <div class="chips">
+            <button class="chip on" data-season="all" aria-pressed="true">全部</button>
+            <button class="chip" data-season="夏">夏</button>
+            <button class="chip" data-season="春秋">春秋</button>
+            <button class="chip" data-season="冬">冬</button>
+          </div>
+        </div>
+        <div class="bar" style="margin-top:-2px">
+          <input type="text" id="clothSearch" class="search" placeholder="搜名字、品类、标签"
+                 autocomplete="off" aria-label="搜柜子里的衣物" />
+        </div>
+        <div class="closet" id="closet"></div>
+        <div id="clothActions"></div>
+        <div class="space"></div>
+        <div id="wardrobeStats"></div>
+      </div>
+
+      <div id="yiPaneOutfit" hidden>
+        <div id="outfitList"></div>
+      </div>
+
+      <div id="yiPaneWish" hidden>
+        <p class="tiny" id="wishNote"></p>
+        <div class="row" style="margin:12px 0">
+          <input type="text" id="wishName" placeholder="想买什么" aria-label="想买的单品名字" />
+          <input type="text" id="wishPrice" class="inline-num" inputmode="decimal"
+                 placeholder="价格" aria-label="价格，可留空" style="width:96px" />
+        </div>
+        <div class="row">
+          <button class="btn ghost" id="addWish">放进愿望</button>
+          <button class="btn ghost" id="wishFromLast">从上一张笺来</button>
+        </div>
+        <div class="space"></div>
+        <div class="stack" id="wishList"></div>
+      </div>
+    </section>
+
+    <section class="screen" id="yi-report" role="region" aria-label="衣笺报告">
+      <div class="topbar">
+        <p class="brand">衣笺 · 报告</p>
+        <button class="chip" id="backYi">返回</button>
+      </div>
+      <article class="report">
+        <p class="meta">JIAN · YI</p>
+        <!-- 这一屏以前没有标题：换屏时焦点落在 section 本身，读屏器只念出区域名「衣笺报告」，
+             而这一屏唯一要看的答案（宜入 / 再想想 / 先别）一个字都没念。给它一个只给读屏器的
+             h1，文字由 paintReport 跟着判定改——焦点落点于是是「衣笺报告 · 先别」。 -->
+        <h1 class="sr-only" id="reportTitle">衣笺报告</h1>
+        <div class="compare" id="reportCompare"></div>
+        <p class="quote serif" id="reportQuote"></p>
+        <p class="tiny" id="reportSub"></p>
+        <p class="tiny" id="reportNote" style="margin-top:8px"></p>
+        <p class="tiny" id="reportMatch" style="margin-top:8px"></p>
+        <div class="stamp yes" id="reportStamp">宜入</div>
+        <p class="signoff"><span>一张短笺，一次决定</span></p>
+      </article>
+      <div class="space"></div>
+      <!-- 判完「宜入」，那件东西就该落到柜子里：不然下次买同类还得重拍一遍。
+           这一枚按钮是衣笺的闭环，放在复制/存长图之前。 -->
+      <button class="btn ghost wide" id="toCloset">记进柜子</button>
+      <div class="space"></div>
+      <div class="row">
+        <button class="btn ghost" id="copyReport">复制这段话</button>
+        <button class="btn seal" id="saveCard">存成长图</button>
+      </div>
+      <div class="bar" style="justify-content:center;margin-top:14px">
+        <button class="chip" id="switchStyle">版式 · 卡片</button>
+      </div>
+    </section>
+
+    <section class="screen" id="wei" role="region" aria-label="味笺" data-wm="味">
+      <p class="brand"><span class="seal-mark" aria-hidden="true">味</span>味笺</p>
+      <h1 class="serif mark">这桌能入口</h1>
+      <!-- 味笺从「排一次桌」长成「管一桌饭」：排桌 / 做菜（菜谱卡）/ 买菜（清单）/
+           这周（一周菜单）。四块共用同一份忌口与菜库，切页签不换屏。 -->
+      <div class="tabs" id="weiTabs" role="tablist" aria-label="味笺的分区">
+        <button role="tab" data-weitab="plan" aria-selected="true">排桌</button>
+        <button role="tab" data-weitab="cook" aria-selected="false">做菜<span class="cnt" id="weiCookCnt"></span></button>
+        <button role="tab" data-weitab="market" aria-selected="false">买菜<span class="cnt" id="weiMarketCnt"></span></button>
+        <button role="tab" data-weitab="week" aria-selected="false">这周</button>
+      </div>
+
+      <div id="weiPanePlan">
+        <div class="chips" style="margin:12px 0">
+          <button class="chip on" data-weimode="friends" aria-pressed="true">朋友</button>
+          <button class="chip" data-weimode="couple">情侣</button>
+          <button class="chip" data-weimode="home">回家</button>
+          <button class="chip" data-weimode="work">同事</button>
+        </div>
+        <div class="stack" id="people"></div>
+        <div class="row" style="margin:12px 0">
+          <input type="text" id="personName" placeholder="怎么称呼" aria-label="新同伴的称呼" />
+          <button class="btn ghost" id="addPerson">加人</button>
+        </div>
+        <textarea id="menu" placeholder="把菜单贴进来，一行一道。顺手写一句「有人不吃辣」也认。"
+                  aria-label="这桌的菜单，一行一道"></textarea>
+        <div id="weiHist" class="hist" style="display:none"></div>
+        <div class="space"></div>
+        <div class="row">
+          <button class="btn ghost" id="demoWei">填示例菜单</button>
+          <button class="btn" id="runWei">排这桌</button>
+        </div>
+        <div class="space"></div>
+        <div id="weiResult"></div>
+      </div>
+
+      <!-- 做菜：菜谱卡。内置菜库 = Engine.DISHES 的 63 道（只有名字 + 标签，不存步骤），
+           用户自己录的步骤存在 state.recipes。**菜谱正文只允许用户自己写**：从网上抓
+           既有版权问题，也和「不联网也能用」冲突。 -->
+      <div id="weiPaneCook" hidden>
+        <div class="row" style="margin:12px 0">
+          <input type="text" id="dishSearch" class="search" placeholder="搜菜名、食材、忌口"
+                 aria-label="搜菜谱" autocomplete="off" />
+        </div>
+        <div class="row">
+          <button class="btn ghost" id="wheelBtn">今晚吃什么</button>
+          <button class="btn ghost" id="newRecipe">自己写一道</button>
+        </div>
+        <div class="space"></div>
+        <div id="cookList"></div>
+      </div>
+
+      <!-- 买菜：清单从菜谱写出来，按货架分区，同名同单位合并。 -->
+      <div id="weiPaneMarket" hidden>
+        <div class="row" style="margin:12px 0">
+          <input type="text" id="marketName" placeholder="要买什么" aria-label="要买的食材" />
+          <button class="btn ghost" id="addMarket">加上</button>
+        </div>
+        <p class="tiny" id="marketNote"></p>
+        <div class="space"></div>
+        <div id="marketList"></div>
+      </div>
+
+      <!-- 这周：一周菜单，7 列网格，点格填菜。 -->
+      <div id="weiPaneWeek" hidden>
+        <div id="weekGrid"></div>
+      </div>
+    </section>
+
+    <section class="screen" id="yan" role="region" aria-label="言笺" data-wm="言">
+      <p class="brand"><span class="seal-mark" aria-hidden="true">言</span>言笺</p>
+      <h1 class="serif mark">说过就算数</h1>
+      <!-- 「语音请先转文字」框底下那行说过了（还多说了一层：用手机自己的听写）；
+           「通话请自己存录音」更是从第 31 轮起就没有任何入口收录音——留着它，
+           等于让用户去准备一个这个 App 用不上的东西。 -->
+      <p class="tiny">贴文字即可。</p>
+      <div class="space"></div>
+      <textarea id="yanText" placeholder="把聊天记录贴在这里。" aria-label="说过的话，贴在这里"></textarea>
+      <!-- 聊天截图是一条「先自己转成文字」的旁路，不是主路径。原来两个大按钮压在
+           输入框上面，把真正要做的事挤到第二屏；收进框底下当小签。
+           「放录音」这一枚删了：应用不录也不转写录音，那个文件框选完永远只会回一句
+           「请先转文字」——一枚按了必然没用的按钮，比没有更坏（第 27 轮定的规矩）。
+           要转文字用手机自己的听写，那句话说在这儿就够，不需要一个假入口。 -->
+      <div class="chips" style="margin-top:10px">
+        <button class="chip" id="yanImgBtn">放图片</button>
+        <button class="chip" id="yanRemindBtn">到点提醒</button>
+        <button class="chip" id="yanDigestBtn">摘一句</button>
+      </div>
+      <p class="tiny" style="margin-top:6px">语音请先用手机自己的听写转成文字，再贴进上面这个框。</p>
+      <div class="space"></div>
+      <div class="row">
+        <button class="btn ghost" id="demoYan">填示例聊天</button>
+        <button class="btn" id="runYan">捞成笺</button>
+      </div>
+      <div class="space"></div>
+      <!-- 言笺的上限是 200 条，而这一笺原来只有「按类型 / 按时间 / 只看没办的」三把筛：
+           想找回「上次说好的那家店叫什么」得一屏一屏划。柜子上方有搜索、这笺没有——
+           同一件事在两个地方只做一个，缺的那个迟早没人用（第 44 轮量过：200 条时这一屏
+           有 40 屏长）。和柜子同一套规矩：搜索是**临时过滤**，不进 state、不写盘。 -->
+      <div class="bar" id="yanSearchBar" style="margin-top:-6px" hidden>
+        <input type="text" id="yanSearch" class="search" placeholder="搜这句话、人名、类别"
+               autocomplete="off" aria-label="搜言笺里的条目" />
+      </div>
+      <div id="yanOut"></div>
+    </section>
+
+    <section class="screen" id="me" role="region" aria-label="我的" data-wm="册">
+      <p class="brand"><span class="seal-mark" aria-hidden="true">笺</span>我的</p>
+      <h1 class="serif mark">笺册</h1>
+      <div class="card stampcard">
+        <span class="seal-mark lg serif corner" aria-hidden="true">笺</span>
+        <div class="tiny">笺点</div>
+        <p class="price serif" id="points">24</p>
+        <p class="tiny">订阅：<span id="planName">未订阅</span></p>
+      </div>
+      <div class="space"></div>
+      <p class="tiny">开哪一笺</p>
+      <!-- 初值一律写 false：出厂虽然三笺全开，但 renderMe() 一进来就按 state.modules 刷真；
+           写 true 反而在「导入了一份只开一笺的备份」那一帧说假话（me.js:148 那个 setter 才是口径）。 -->
+      <div class="chips">
+        <button class="chip" data-mod="yi" aria-pressed="false">衣</button>
+        <button class="chip" data-mod="wei" aria-pressed="false">味</button>
+        <button class="chip" data-mod="yan" aria-pressed="false">言</button>
+      </div>
+      <div class="space"></div>
+      <p class="tiny">打开即是</p>
+      <div class="chips">
+        <button class="chip" data-home="today" aria-pressed="false">今日</button>
+        <button class="chip" data-home="yi" aria-pressed="true">衣笺</button>
+        <button class="chip" data-home="wei" aria-pressed="false">味笺</button>
+        <button class="chip" data-home="yan" aria-pressed="false">言笺</button>
+      </div>
+      <div class="space"></div>
+      <!-- v0.6.0：外观/通知/数据/关于收进单独一屏。原来这一屏既是钱包又是设置又是笺册，
+           加第四类东西就没有地方放了。入口放在钱包卡下面第一个位置——它是「调整」，
+           而下面的都是「内容」。 -->
+      <div class="list" id="meLinks">
+        <button class="rowbtn" id="openSettings">
+          <span class="grow"><b>设置</b><span class="sub">外观 · 通知 · 数据 · 关于</span></span>
+        </button>
+        <button class="rowbtn" id="openSearch">
+          <span class="grow"><b>找东西</b><span class="sub">一次搜遍柜子、言笺、笺册、菜谱</span></span>
+        </button>
+        <button class="rowbtn" id="openBadges">
+          <span class="grow"><b>章</b><span class="sub" id="badgeSub">一枚一枚攒</span></span>
+        </button>
+      </div>
+      <div class="space"></div>
+      <!-- 演示版没有支付：这一块只是把模块开出来、送几点笺。以前四个大按钮顶着
+           「衣笺 19」这样的价签占满首屏，看着像收费页，其实一分不扣、点完还 +16。
+           现在收进一格折叠，标签说的是它真正做的事。
+           第三枚到第六枚以前写着「另两笺各送 8 点」——那是无条件发的：这四枚签买完之后
+           还留在原处，再点一次又送 16，连点两下就是 32。现在送点按「当场真的从关到开了
+           几笺」算，标签也不再承诺一个固定数额，规则写在下面那一行。 -->
+      <details class="topup">
+        <summary class="tiny">测试订阅 · 演示版不接支付</summary>
+        <p class="tiny" style="margin:8px 0 0">开哪一笺，那一笺就不再扣点；每有一笺当场从关着被打开，送 8 点——已经开着的不重复给。</p>
+        <div class="chips" style="margin-top:10px">
+          <button class="chip" data-buy="yi">开衣笺</button>
+          <button class="chip" data-buy="wei">开味笺</button>
+          <button class="chip" data-buy="yan">开言笺</button>
+          <button class="chip" data-buy="all">三笺全开</button>
+        </div>
+      </details>
+      <div class="space"></div>
+      <p class="tiny">算力网关（留空=本地）</p>
+      <input type="text" id="apiUrl" placeholder="https://你的网关" aria-label="自建网关的地址，留空表示只用本地" />
+      <div class="space"></div>
+      <button class="btn ghost wide" id="saveApi">保存接口</button>
+      <p class="tiny" id="apiState" style="margin-top:8px"></p>
+      <p class="tiny" id="apiModel" style="margin-top:4px"></p>
+      <!-- 备份这一整块以前压在笺册底下：笺册存满 24 张时「导出备份」离首屏 3.7 屏（实测），
+           而想导出的人往往是觉得数据要出事的那个人。保护数据的动作排在它保护的数据下面，
+           顺序是反的。现在备份/清空在前，笺册（翻历史用的）收尾。 -->
+      <div class="space"></div>
+      <p class="tiny" id="storageNote">数据只在这台设备</p>
+      <div class="row" style="margin-top:8px">
+        <button class="btn ghost" id="exportData">导出备份</button>
+        <button class="btn ghost" id="importData">导入备份</button>
+      </div>
+      <!-- 隐私政策的入口（第 62 轮）紧跟在「数据只在这台设备」那一句下面：
+           那一屏是这 App 里唯一讲数据去哪儿的地方，而上面刚说了「数据只在这台设备」，
+           同一屏下面就放着网关地址那一格——两句之间的落差正是这一页要解释的东西。
+           这里一个字都不写：那条网址在仓库里只准有 config.js 一份，整块由 me.js 的
+           renderPrivacy() 按它渲染（写死在 HTML 里就是第二份定义，store_claims 对不上）。 -->
+      <div id="privacyBox" class="privacy"></div>
+      <div class="space"></div>
+      <button class="chip" id="reset">清空本地数据</button>
+      <div class="space"></div>
+      <p class="tiny" id="albumNote"></p>
+      <div class="chips" id="albumChips" style="margin:8px 0 4px"></div>
+      <div class="stack" id="album"></div>
+    </section>
+  </div>
+
+  <nav class="nav" id="nav" role="navigation" aria-label="主导航"></nav>
+  <input class="file" id="fileCloth" type="file" accept="image/*" />
+  <input class="file" id="fileNew" type="file" accept="image/*" />
+  <!-- capture="environment" 让安卓直接拉起后置相机；不写 capture 的那两个走系统图片选择器
+       （实测 Photo Picker，不需要任何存储/相机权限）。两条路都只把用户选中的那一张交给 App。 -->
+  <input class="file" id="fileCam" type="file" accept="image/*" capture="environment" />
+  <!-- 补照片：柜里已有的一件，照片被本机上限清掉之后能有第二次机会。
+       第 21 轮那句「重新拍照能补上」就是靠这两个输入框兑现的——不是再入柜一次，
+       那会把同一句话承诺「还在」的穿着记录一起毁掉。 -->
+  <input class="file" id="fileRephoto" type="file" accept="image/*" />
+  <input class="file" id="fileRecam" type="file" accept="image/*" capture="environment" />
+  <input class="file" id="fileYanImg" type="file" accept="image/*" />
+  <input class="file" id="fileImport" type="file" accept="application/json,.json" />
+
+  <!-- 顺序即依赖：state 定义全局 state，ui 提供 esc/toast/导航，
+       各屏与 card 只在函数体里用它们，boot() 在 app.js 末尾才跑。 -->
+  <script src="config.js"></script>
+  <script src="engine.js"></script>
+  <script src="api.js"></script>
+  <script src="state.js"></script>
+  <script src="theme.js"></script>
+  <script src="ui.js"></script>
+  <script src="card.js"></script>
+  <!-- card.js 那 74KB 顶到了载荷门（scripts/test.mjs 的 MAX_FILE_KB = 64）：
+       test:pkg 红在「www 载荷 / 安卓 assets 有超过 64KB 的文件」。
+       拆成三份不是按行数切的，是按**谁跟谁是一族**：报告卡（快、只用衣笺判定）、
+       年度总结、三张新长图（单品/搭配/摘录）。三段之间只有运行期调用、没有解析期依赖，
+       所以这里的先后只表达「谁读谁」，不是 state.js 那种硬约束。
+       card-long.js 读 card-year.js 的 tokenLight，所以 must 排在它之后。 -->
+  <script src="card-year.js"></script>
+  <script src="card-long.js"></script>
+  <script src="yi.js"></script>
+  <script src="wei.js"></script>
+  <script src="yan.js"></script>
+  <script src="me.js"></script>
+  <script src="wardrobe.js"></script>
+  <script src="cookbook.js"></script>
+  <script src="market.js"></script>
+  <script src="remind.js"></script>
+  <script src="stats.js"></script>
+  <script src="achievements.js"></script>
+  <script src="settings.js"></script>
+  <script src="wire.js"></script>
+  <script src="share.js"></script>
+  <script src="today.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

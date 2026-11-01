@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 网关是用户自己起的：他在「我的」里填的通常是局域网那台机器上的 http://192.168.x.x:8787。
+     安卓从 targetSdk 28 起默认禁明文流量——实测合并后的 manifest 里原本既没有
+     usesCleartextTraffic 也没有 networkSecurityConfig，所以第 17 轮接进来的
+     识图/抄截图在 APK 里根本发不出去（屏幕上只会说「网关连不上：Failed to fetch」）。
+
+     这一份是两道承重闸之一。同一台模拟器上把两道逐个关掉量过（每一格都重新 cap:sync，
+     别让 APK 里那份旧配置替你说谎）：
+        混合内容开 + 这份关掉            → 连不上
+        混合内容关 + 这份放行明文        → 连不上
+        混合内容开 + 这份放行明文        → 在线   ← 就是现在这份
+     两道都承重：这一份管安卓平台层放不放明文，capacitor.config.json 的
+     android.allowMixedContent 管 WebView 层放不放「https 页面去抓 http」，少任何一层
+     设备上只剩一句「网关连不上：Failed to fetch」。
+     清单里不写 usesCleartextTraffic——有 networkSecurityConfig 在，那个属性本来就被忽略，
+     留着只会让上架审查多问一句（这一条同样实测过：去掉它照样在线）。
+
+     为什么放开到全局而不是按域名白名单：这个壳自己一个网络请求都不发（页面资源走
+     https://localhost 的本地映射，不出网卡），唯一的出网就是用户亲手填的那一台；
+     而局域网 IP 没法枚举（NSC 不支持网段），白名单会把主用法——手机拍衣服、
+     判定跑在自己电脑上——直接锁死。真正的边界在服务器那一侧：backend/gateway.py
+     默认只听 127.0.0.1，要供局域网得显式 JIAN_HOST=0.0.0.0，见 GATEWAY.md。 -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

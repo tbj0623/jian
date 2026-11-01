@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 夜间模式下的三套主题。
+
+     为什么要单独一份：同一资源名在 values 与 values-night 各有一份时，**整套替换**，
+     不做逐项合并。也就是说这里必须把父样式与关键项都重写一遍，
+     只写想改的那几条会让其余项退回父样式的默认值（实测过：只写 lightBar 两行，
+     夜里 windowBackground 变成 AppCompat 的白，启动瞬间闪一块白）。
+
+     与 values/styles.xml 的差别只有一类：系统条上的图标颜色。
+     白天是深色图标压在纸上（windowLight*Bar = true），
+     夜里反过来压在一片夜纸上，再要求深色图标就等于让时间和电量消失。
+     纸色本身不在这里写死，而是去 @color/splash_background，
+     那份颜色在 values-night/colors.xml 里已经换成夜纸。 -->
+<resources>
+
+    <style name="AppTheme" parent="Theme.AppCompat.DayNight.DarkActionBar">
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+        <item name="colorAccent">@color/colorAccent</item>
+        <item name="android:forceDarkAllowed">false</item>
+    </style>
+
+    <style name="AppTheme.NoActionBar" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+        <item name="android:background">@null</item>
+        <item name="android:windowBackground">@color/splash_background</item>
+        <item name="android:statusBarColor">@color/splash_background</item>
+        <item name="android:navigationBarColor">@color/splash_background</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:forceDarkAllowed">false</item>
+        <item name="colorAccent">@color/seal_red</item>
+        <item name="colorPrimary">@color/seal_red</item>
+        <item name="android:colorControlActivated">@color/seal_red</item>
+    </style>
+
+    <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
+        <item name="android:background">@drawable/splash</item>
+        <item name="android:windowBackground">@color/splash_background</item>
+        <item name="android:statusBarColor">@color/splash_background</item>
+        <item name="android:navigationBarColor">@color/splash_background</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_icon</item>
+        <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
+        <item name="android:forceDarkAllowed">false</item>
+    </style>
+</resources>

@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Base application theme. -->
+    <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
+        <!-- Customize your theme here. -->
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+        <item name="colorAccent">@color/colorAccent</item>
+        <!-- 不许系统给这张纸做「算法反色」（安卓 10+ 的 WebView force dark /
+             algorithmic darkening）。实测记录（2026-09-20，API 35 模拟器 + WebView 124）：
+             把这行删掉、再把 styles.css 的 color-scheme 也去掉，夜间模式下纸仍然是
+             (244,239,230)——本机根本复现不出反色。所以这一行不是修出来的 bug，
+             是买的一根保险：各厂商 WebView 的默认值不一样，而它没有代价。
+             真正常起作用的是 styles.css 里的 color-scheme: light（管 UA 控件的皮肤）。 -->
+        <item name="android:forceDarkAllowed">true</item>
+    </style>
+
+    <!-- 启动画面交棒之后生效的就是这个主题，所以系统条的颜色必须在这里也说清楚：
+         不写这几条，交接瞬间状态栏/手势条会换成 AppCompat 默认的黑色，
+         实测「印 → 黑条 + 界面」，比原来还难看。
+         windowLightStatusBar / windowLightNavigationBar = 条上用深色图标（底下是纸）。
+
+         windowBackground 这里放的是**纯色**，不是那张「纸 + 印」的层叠图。
+         踩过：把 layer-list 当 windowBackground，因为位图那层带 alpha，
+         Drawable.getOpacity() 就不是 OPAQUE 了，窗口被当成半透明窗口，
+         系统条那一条直接渲染成黑（实测顶条 128px 全黑）。印留给启动图去画。 -->
+    <style name="AppTheme.NoActionBar" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+        <item name="android:background">@null</item>
+        <item name="android:windowBackground">@color/splash_background</item>
+        <item name="android:statusBarColor">@color/splash_background</item>
+        <item name="android:navigationBarColor">@color/splash_background</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:forceDarkAllowed">true</item>
+        <!-- 原生弹层（日期选择器、复选框、输入框光标）的强调色。不写就是 Material 默认青绿，
+             实测 <input type=date> 起的那个 android.widget.DatePicker 整个是青的。
+             这三条只管弹层，状态栏/导航栏颜色仍由上面那几条说。 -->
+        <item name="colorAccent">@color/seal_red</item>
+        <item name="colorPrimary">@color/seal_red</item>
+        <item name="android:colorControlActivated">@color/seal_red</item>
+    </style>
+    <!-- 启动主题。现在 capacitor.config 里 launchShowDuration=0，SplashScreen 插件全程不参与，
+         这一层是**系统自己**在应用第一帧之前画的（安卓 12+ 走框架，12 以下走窗口底色）。
+         但 postSplashScreenTheme 这三条必须一起给全：哪天有人把时长调回非 0，
+         androidx 的 installSplashScreen() 少了它就会抛 IllegalStateException，
+         插件 catch 掉之后退回「拿 splash 位图铺一个全屏 ImageView」的老路，
+         那张图会被 FIT_XY 拉伸——历史上就是这么坏的。
+         windowSplashScreenBackground 必须是纸色（见 colors.xml 的注释）。 -->
+    <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
+        <item name="android:background">@drawable/splash</item>
+        <item name="android:windowBackground">@color/splash_background</item>
+        <item name="android:statusBarColor">@color/splash_background</item>
+        <item name="android:navigationBarColor">@color/splash_background</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_icon</item>
+        <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
+        <item name="android:forceDarkAllowed">true</item>
+    </style>
+</resources>

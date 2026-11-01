@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 状态栏通知的小图标。
+
+     为什么是矢量而不是位图：通知栏那条图标只取**形状**（系统把它当 alpha 蒙版上色），
+     所以它必须是白色剪影——拿启动图那枚彩色印章当小图标，安卓会把它画成一个白方块。
+     一个 path 换五个密度目录，也省掉「忘记补 xxxhdpi」这类只在某台机器上露馅的坏法。
+
+     图形是一枚方形印章里挖出「十」字格：远看是印，近看窄到 24dp 也还认得出来。
+     颜色写死 #FFFFFF 是有意的（蒙版色本来就由系统覆盖），不是漏用 CSS 变量。 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M6,3 L18,3 A3,3 0 0 1 21,6 L21,18 A3,3 0 0 1 18,21 L6,21 A3,3 0 0 1 3,18 L3,6 A3,3 0 0 1 6,3 Z M7,9 L17,9 L17,10.6 L7,10.6 Z M11.2,7 L12.8,7 L12.8,17 L11.2,17 Z" />
+</vector>

@@ -1,0 +1,20 @@
+{
+  "appId": "com.jian.app",
+  "appName": "笺",
+  "webDir": "www",
+  "android": {
+    "backgroundColor": "#f4efe6",
+    "allowMixedContent": true
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 0,
+      "backgroundColor": "#f4efe6",
+      "splashImmersive": false
+    },
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_jian",
+      "iconColor": "#b54a3c"
+    }
+  }
+}

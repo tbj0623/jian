@@ -1,0 +1,80 @@
+apply plugin: 'com.android.application'
+
+android {
+    namespace = "com.jian.app"
+    compileSdk = rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId "com.jian.app"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 29
+        versionName "0.6.1"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    signingConfigs {
+        release {
+            // 四个属性都从 Gradle property 读取（真实来源：~/.gradle/gradle.properties，不进版本库）。
+            // findProperty() 带空值兜底：任何机器上都能同步这个文件，不会因缺属性而直接编译失败。
+            def storeFileProp = findProperty('JIAN_STORE_FILE') ?: 'jian-release.keystore'
+            def storePasswordProp = findProperty('JIAN_STORE_PASSWORD') ?: ''
+            def keyAliasProp = findProperty('JIAN_KEY_ALIAS') ?: 'jian'
+            def keyPasswordProp = findProperty('JIAN_KEY_PASSWORD') ?: storePasswordProp
+            storeFile file(storeFileProp)
+            storePassword storePasswordProp
+            keyAlias keyAliasProp
+            keyPassword keyPasswordProp
+        }
+    }
+    buildTypes {
+        release {
+            // 有意的兜底：本机未配置 JIAN_* 签名属性时回落 debug 签名，
+            // 保证任何机器都能出可安装的 release 包；配置了属性则用正式签名。
+            signingConfig = findProperty('JIAN_STORE_PASSWORD') != null ? signingConfigs.release : signingConfigs.debug
+            // R8 开码：release 包做代码裁剪 + 资源裁剪。
+            // 这件事的风险不是编不过，而是「编过了、装上了、某个原生能力静默没了」——
+            // Capacitor 的插件靠注解 + 反射注册，资源里 splash / mipmap 又是按名字查的
+            // （AssetUtil.getIdentifier），裁剪器看不见这些引用。所以：
+            //   1) 每个 capacitor AAR 自带的 consumer proguard 规则负责插件类不被裁掉；
+            //   2) res/raw/keep.xml 钉住按名字找的资源；
+            //   3) test/device_verify.py 有一条「七个原生插件在 JS 侧都桥到了」盯桥面；
+            //   4) release 包没有 CDP，所以另有 test/release_smoke.py 装真 release 包看它到底画没画出来。
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation project(':capacitor-android')
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+apply from: 'capacitor.build.gradle'
+
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch(Exception e) {
+    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}

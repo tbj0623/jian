@@ -1,0 +1,1023 @@
+/* 笺 · 纸感样式
+   设计口径：纸、静、少。印章是唯一反复出现的母题（模块印、底栏印点、盖章动效），
+   其余靠留白、字距和一根发丝线。整份样式只有一个强调色（印章红）。 */
+
+:root {
+  /* 只有亮色这一种说法。不写它：安卓的日期/复选框等 UA 控件会在系统夜间模式里
+     自己变成深色皮肤，压在纸上就是一块块对不上的灰；e2e 第 23 节钉着这一句。
+     （算法反色本身另有一层：android:forceDarkAllowed，见 styles.xml 的实测说明。） */
+  color-scheme: light;
+  --paper: #f4efe6;
+  --paper-2: #ebe4d6;
+  --ink: #2a2723;
+  --ink-soft: #6b645b;
+  --line: #d9d0c2;
+  --seal: #b54a3c;
+  /* 再想想的金色。历史：原先 #c9a227 压在纸白上只有 2.26:1——三个结论章里
+     最常见、最需要人读清的那一个反而看不清；改成 #8f6d15 之后「过 AA 4.50:1」。
+     但那个 4.50 是**只对着 --cream 一张纸**量的：压 --paper-2 只有 3.80:1，
+     而且压 --cream 实测 4.498——对比度门的判据是 `r < need - 0.005`，
+     4.498 永远不触发 4.498 < 4.495，于是它成了全仓唯一一条恒绿的色对。
+     也就是说这道门在这条颜色上可以差一点点，而没人会发现。
+     现在按**三张浅纸里最差的那张**取值：4.67:1（--paper 5.13 / --paper-2 4.67 / --cream 5.52）。
+     色相没有动（43°），只是把明度压到能读清的那一档——它还是金，只是不再是浅金。 */
+  --seal-2: #7a611f;
+  --ok: #4a6b52;
+  --cream: #faf7f1;
+  /* 占位符（说明文字）的墨。单独一个令牌，不跟 --ink-soft 绑死：
+     两者现在数值相同，但一个是「用户真的写下的次要文字」，一个是「还没写的提示」，
+     以后要调其中一个不该连带动另一个。
+     值是按最坏底色挑的：浅纸三档（--paper / --paper-2 / --cream）里最差 4.61:1，
+     夜里的取值在 styles-v06.css，最差 5.25:1。原来写死 #7a7062：
+     白天压 --cream 只有 4.54（勉强过），夜里只有 3.38:1——而这一条当时没有任何门在量。 */
+  --ph: #6b645b;
+  /* 纸上只有一种抬升：带偏移的软影，全局只声明这一次 */
+  --lift: 0 1px 2px rgba(42, 39, 35, .04), 0 14px 28px -16px rgba(42, 39, 35, .18);
+  --radius: 16px;
+  --ease-out: cubic-bezier(.22, 1, .36, 1);
+  /* App 化：刘海/圆角安全区。浏览器里全是 0，版式与现在逐像素一致。 */
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+}
+
+/* 点按不带灰块、双击不缩放（manipulation 保留滚动与捏合） */
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+html {
+  scroll-behavior: smooth; overscroll-behavior: none;
+  /* 底栏是 fixed 的，压在页面上方 96px（+ 安全区）。`body` 的 padding-bottom 只保证
+     「滚到最底时最后一行不被盖住」，管不了**滚动到某个元素**这件事：
+     `scrollIntoView` / 键盘 Tab 把焦点带到下面去时，浏览器按「贴到视口底边」算，
+     而视口底边正是底栏所在的地方——于是焦点落进底栏底下，键盘用户看得见底栏、
+     看不见自己站在哪儿。这是 WCAG 2.4.11（Focus Not Obscured）里的那一类。
+     实测：237 次 Tab 里 17 次落进去；加上这一条之后降到 1~0 次。
+     用的是 W3C 给这件事列的充分技术之一（C43）。 */
+  scroll-padding-bottom: calc(96px + var(--sab) + 12px);
+}
+html, body { height: 100%; overscroll-behavior: none; }
+body {
+  font-family: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Source Han Sans SC", "Microsoft YaHei", sans-serif;
+  /* 纸底的两种说法（纸色 + 纸纹）。
+     以前这里写死了 rgba(244,239,230,.92)——那是**白天的纸**被钉进两个渐变里，
+     于是 data-theme="dark" 只换掉了卡片和字色，整张纸还是亮的（实测就是黑卡片浮在米色纸上）。
+     现在走 --paper-wash / --grain 两个变量：白天由下面的 fallback 给出原值（一个字节没改），
+     夜里由 styles-v06.css 覆盖。 */
+  background:
+    linear-gradient(180deg, var(--paper-wash, rgba(244, 239, 230, .92)), var(--paper-wash, rgba(244, 239, 230, .92))),
+    repeating-linear-gradient(90deg, var(--grain, rgba(42, 39, 35, .015)) 0 1px, transparent 1px 7px);
+  background-color: var(--paper);
+  color: var(--ink);
+  line-height: 1.55;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* 浏览器原生件也属于这份设计：选区、光标、滚动条、占位符都从纸色里来 */
+::selection { background: var(--ink); color: var(--paper); }
+textarea, input { caret-color: var(--seal); }
+* { scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-thumb { background: var(--line); border-radius: 999px; }
+::-webkit-scrollbar-track { background: transparent; }
+/* 占位符在这个 App 里是说明书（「把菜单一行一道贴进来」「怎么称呼」），不是装饰。
+   历史：#a89f92 → 2.44:1（被对比度门抓到）；改成写死 #7a7062 之后白天勉强过，
+   夜里却掉到 3.38:1——写死一个值的坏处就是它只对一种纸成立。
+   现在走 --ph 令牌：白天最差 4.61、夜里最差 5.25（两张纸都在 styles-v06.css 里给了值）。
+   opacity:1 是必须的：UA 默认给占位符叠一层透明度，会把算好的对比度再乘一次。 */
+input::placeholder, textarea::placeholder { color: var(--ph, #6b645b); opacity: 1; }
+/* 被 [hidden] 收起来的东西必须真的看不见。
+   原来只有 .veil-off 一条（.btn 是 inline-flex，盖过了 UA 的 [hidden]{display:none}）。
+   实测还有两处同类漏网、而且都是「属性挂着、子树还画着」：
+     · cookbook.js 的 .dish-grid 写成 display:grid，收起的那一组照样整片画在屏上，
+       里面 12 张菜卡还 Tab 得到；
+     · index.html 的 #yanSearchBar 是 .bar（flex），言笺一条都没有时那个搜了也白搜的
+       输入框照样摆着。
+   这一条兜住整族：以后谁再给一个可能带 hidden 的容器写 display，都不会漏。 */
+[hidden] { display: none !important; }
+
+/* 日期框 / 取色器要**单独**列一条焦点环，不能指望上面那条全局 `:focus-visible`。
+   事故：a11y_v06 第 10 节按 Tab 走过去，`input#clothWornDay`（type=date）与
+   `input#itemBought`（type=date）量到 `outline-style: none`、宽度 3px 但形状是 none，
+   而同一趟里别的控件都画得出那圈印章红。根因是这两类 input 在 Chromium 里外观是
+   `appearance: auto`：真正的焦点落在 UA 影子树里的那个编辑器上，外壳元素
+   `el.matches(':focus-visible')` 实测为 false（同一时刻 `el.matches(':focus')` 是 true），
+   于是全局那条选择器根本匹配不到它。
+   这两处是这一版数据录入的主入口（「上次穿改到某一天」「买于」），
+   键盘用户走到了却看不见自己站在哪儿 —— 2.4.7 里最糟的一种。
+   所以用 `:focus`（而不是 `:focus-visible`）兜住这两类：宁可鼠标点进去也画一圈，
+   也不要键盘用户眼前一片空白。 */
+input[type="date"]:focus, input[type="color"]:focus, input[type="date"]:focus-visible,
+input[type="color"]:focus-visible { outline: 2px solid var(--seal); outline-offset: 2px; }
+
+/* 光有上面那条还不够：`#clothWornDay` 再按一次 Tab 就**走进了它自己的影子树**。
+   实测那一瞬间 `document.activeElement` 还是这枚 input、`:focus` 与 `:focus-visible`
+   双双变成 false、只有 `:focus-within` 还是 true —— outline 当场消失。
+   也就是说第一下 Tab 有环、第二下有环没了，人正停在年 / 月 / 日某一格上却看不见。
+   Chromium 把日期框的每一段做成影子树里的子控件，`:focus` 只认宿主自己。
+   所以这一族必须用 `:focus-within`：焦点落在它体内任何一层，外壳都画环。 */
+input[type="date"]:focus-within, input[type="color"]:focus-within {
+  outline: 2px solid var(--seal); outline-offset: 2px;
+}
+
+/* 同样的两类 input 还差 1–4px 不到 44：实测 `#clothWornDay` 162×43、`#clothColor` 58×40。
+   差得不多，但 2.5.5 量的是实际命中区，不是「差不多」。只补最小高度，不动宽度与版式：
+   这两枚在表单行里是定宽的，撑高一点正好跟旁边那几行对齐。 */
+.screen input[type="date"], .screen input[type="color"] { min-height: 44px; }
+:focus-visible { outline: 2px solid var(--seal); outline-offset: 2px; }
+/* 换屏时把焦点交给这一屏的标题（见 ui.js 的 show）：那是给读屏器的，不是给眼睛的。
+   实测这条 2px 印章红描边会在引导页绕着「笺。」画一个框，在没有 h1 的那一屏
+   （衣笺报告）绕整屏一圈，只在屏幕底边露出一条全宽红线——两头都是事故。 */
+.screen [tabindex="-1"]:focus-visible, .screen:focus-visible { outline: none; }
+
+.serif { font-family: "Songti SC", "Noto Serif SC", "STSong", "SimSun", serif; }
+
+#app {
+  min-height: 100vh;           /* 旧浏览器降级 */
+  min-height: 100dvh;          /* 动态视口：浏览器工具栏收起时不留缝 */
+  max-width: 480px; margin: 0 auto;
+  padding-bottom: calc(96px + var(--sab));
+}
+
+/* 四边安全区都算进内边距：刘海屏、圆角屏不吃内容 */
+.screen {
+  display: none;
+  padding: calc(30px + var(--sat)) calc(22px + var(--sar)) 28px calc(22px + var(--sal));
+}
+.screen.on { display: block; animation: rise .32s var(--ease-out) both; }
+@keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+/* 每个页面的一个入场瞬间：标题像落笔一样从左划出，其余元素安静淡入 */
+.screen.on .mark { animation: ink-reveal .5s var(--ease-out) .06s both; }
+@keyframes ink-reveal { from { clip-path: inset(0 100% 0 0); opacity: .25; } to { clip-path: inset(0 0 0 0); opacity: 1; } }
+
+/* ---------- 字 ---------- */
+
+h1 {
+  font-weight: 500;
+  font-size: clamp(34px, 9.5vw, 42px);
+  line-height: 1.16;
+  letter-spacing: .05em;
+  margin: 10px 0 6px;
+}
+/* 模块标题的落款：一枚印章红的句号，是这份笺的标点 */
+h1.mark::after { content: "。"; color: var(--seal); }
+.brand {
+  font-size: calc(12px * var(--fs-scale, 1));
+  letter-spacing: .34em;
+  color: var(--ink-soft);
+  text-indent: .1em;
+  display: flex; align-items: center;
+}
+.lead { color: var(--ink-soft); font-size: calc(14px * var(--fs-scale, 1)); letter-spacing: .04em; }
+.tiny { font-size: calc(12px * var(--fs-scale, 1)); color: var(--ink-soft); }
+.quote { font-size: calc(18px * var(--fs-scale, 1)); line-height: 1.6; margin: 12px 0 18px; }
+.price { font-size: calc(34px * var(--fs-scale, 1)); font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+.price span { font-size: calc(13px * var(--fs-scale, 1)); color: var(--ink-soft); }
+.meta { font-size: calc(12px * var(--fs-scale, 1)); color: var(--ink-soft); letter-spacing: .2em; }
+
+/* ---------- 印章母题 ---------- */
+
+/* 模块小印：衣/味/言各一枚，旋转一点，像随手盖在纸角 */
+.seal-mark {
+  display: inline-flex; align-items: center; justify-content: center;
+  flex: none;
+  width: 21px; height: 21px; margin-right: 9px;
+  border: 1.5px solid var(--seal); border-radius: 50%;
+  color: var(--seal);
+  font-family: "Songti SC", "Noto Serif SC", "STSong", "SimSun", serif;
+  font-size: calc(11px * var(--fs-scale, 1)); line-height: 1;
+  transform: rotate(-10deg);
+}
+.seal-mark.lg {
+  width: 30px; height: 30px; margin-right: 0;
+  border-width: 2px; font-size: calc(15px * var(--fs-scale, 1));
+}
+
+/* ---------- 版式 ---------- */
+
+.row { display: flex; gap: 10px; flex-wrap: wrap; }
+/* `.row` 里的按钮均分这一行。**但必须带 min-width: 0**：
+   flex 子项的默认 min-width 是 auto = 「不许窄于内容宽度」，而 .btn 是
+   `white-space: nowrap`（见下面那条，标题党按钮不许折行）。两者一撞，
+   长文案的按钮就按**内容宽度**布局并且顶出纸边：
+   实测 360 宽 + 200% 字号时，「这一周变成买菜清单」这一枚 right=401（出血 41px），
+   而 `.screen{overflow-x:clip}` 把多出来的部分裁掉——那 9 个字里最后约 1.5 个字
+   **永久看不见、也滚不过去**。100% 字号下 right=338 正好不犯，所以这个缺陷
+   只在放大字号的人那里出现——那恰好是最读不清字的那一群。
+   min-width:0 让「均分」真的按可用宽度算；文案仍不折行，改成由下面那条
+   长按钮的 letter-spacing 收一档来把字塞进去。 */
+.row .btn { flex: 1; min-width: 0; }
+/* 长文案按钮（≥8 个汉字）在大字号下按 nowrap 排会宽过纸边：把字距收掉。
+   .14em 的疏排是给「过笺 / 就做这道」这种 2–5 字短按钮的，
+   同一套字距套到 9 个字上就是多出 10px。 */
+.row .btn { letter-spacing: .06em; text-indent: .06em; }
+.stack { display: flex; flex-direction: column; gap: 12px; }
+.space { height: 18px; }
+.topbar { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 22px; gap: 12px; }
+/* 眉料和签挤在一行时，宁可让签掉到下一行：被折开的是「3 条 · 已勾 0」这句话。 */
+.bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; margin: 20px 0 8px; }
+.sheet > .bar:first-child { margin-top: 10px; }
+
+/* ---------- 控件 ---------- */
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  border: none; cursor: pointer; font: inherit;
+  min-height: 46px;
+  padding: 12px 22px; border-radius: 999px;
+  background: var(--ink); color: var(--cream);
+  letter-spacing: .14em; text-indent: .14em;
+  /* 标签不许在按钮里断行。360 宽时「复制整张笺」曾被折成「复制整张 / 笺」，
+     而 .row 是 flex-wrap 的：nowrap 之后放不下的是整枚按钮，它会自己换到下一行去。*/
+  white-space: nowrap;
+  transition: transform .12s ease, opacity .12s ease;
+}
+.btn.ghost { background: var(--cream); color: var(--ink); border: 1px solid var(--line); }
+.btn.seal { background: var(--seal); }
+.btn.wide { width: 100%; }
+.btn:active { transform: scale(.98); }
+/* 其余可点元素的按压反馈：纸感要轻，只缩一点点或淡一点 */
+.chip:active, .nav button:active, .mode-card:active, .slip:active { transform: scale(.98); }
+.item:active { opacity: .82; }
+/* 这里以前是 `.btn[disabled] { opacity: .4 }`，删掉了，两个理由：
+   一，opacity 把字一起淡掉——实测 ghost 按钮压到 2.30:1、印章红上那排白字压到 2.11:1，
+   用户读不出*为什么*按不动；二，本仓的禁用口径已经定成「只标 aria-disabled，入口不许真 disabled」
+   （见 yi.js 的 blockBtn），所以这一行留着就是一份纯诱惑：谁哪天写 el.disabled = true，
+   就同时拿到「读不出为什么」和「对读屏器隐形」。下面那组 aria-disabled 的规则才是正解。 */
+/* 「这枚现在不许按」不再靠把字淡出来表达：opacity .4 实测把 ghost 按钮的字压到 2.30:1、
+   印章红上那排白字压到 2.11:1——用户读不出*为什么*按不动，那又是一重沉默。
+   入口按钮现在只标 aria-disabled（能聚焦、能按下、按下去会说话），灰的是壳不是字：
+   ink-soft 压 paper 实测 5.09:1、压 paper-2 4.61:1，都过 AA。 */
+.btn[aria-disabled="true"] { background: var(--paper-2); color: var(--ink-soft); border-color: var(--line); cursor: default; }
+.btn.ghost[aria-disabled="true"] { background: var(--paper); }
+.btn.seal[aria-disabled="true"] { background: var(--line); color: var(--ink); }
+/* 「正在写这张…」那枚按钮。原来写的是 opacity: .55——而这一行字是**唯一**告诉用户
+   「还在动、别走」的句子，淡下去正好把最该读清的那句藏了：实测 ink 压 cream 本来是
+   13:1，乘 .55 只剩 2.29:1，连大字档的 3:1 都不到。同一条错误这个仓已经犯过两次
+   （.nav-ico 的 .62、[aria-disabled] 的 .4），规矩也早就写了「淡出用颜色不用 opacity」。
+   所以这里改成换一套颜色：壳用 --paper-2、字用 --ink-soft（5.09:1），
+   一眼看得出「这枚现在是灰的」，但字仍是字。
+   pointer-events:none 保留：它确实不许再按（这不是 aria-disabled，是「这一次操作还没完」）。 */
+.btn.busy { background: var(--paper-2); color: var(--ink-soft); cursor: default; pointer-events: none; }
+.btn.ghost.busy { background: var(--paper); color: var(--ink-soft); }
+.btn.seal.busy { background: var(--line); color: var(--ink); }
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+/* 排过的桌：菜单框下面那一列小签，点一下把菜单拿回来 */
+.hist { margin-top: 10px; }
+.hist .chips { margin-top: 6px; }
+/* 一桌 = 「拿回菜单」+「删」，两枚签包在同一格里（第 65 轮）。
+   为什么要包：.chips 会折行，两枚散着的签一旦跨过行边界，「删」就正好挨在别一桌的签后面，
+   那时按下去删的是谁说不清。描边由这一格出一次，里面的签不再各自描边（两圈线会看成两枚东西）。
+   flex: 0 0 auto —— 签上的字不许为了挤进同一行被压窄（§47 那道「标签不被裁字」的门量的就是这个）。 */
+#weiHist .hpair {
+  display: inline-flex; align-items: center; flex: 0 0 auto;
+  gap: 2px; border: 1px solid var(--line); border-radius: 999px;
+}
+#weiHist .hpair .chip { border: 0; flex: 0 0 auto; }
+/* 桌与桌之间收一档（8 → 6px）：加了「删」之后 360 的纸上一桌正好占一行，四桌 = 四行，
+   §13 那道「签墙不超过 200px」实测从 149px 涨到 193px，只剩 7px 余量。
+   6px 仍然明显大过一格之内的 2px，两桌不会看成一台，又把余量还回 13px。 */
+#weiHist .chips { gap: 6px; }
+/* 「删」比别的签窄一档，但命中区仍不低于 §41 那条 32px 的线（实测数值写在这一轮的门里）。 */
+#weiHist .hpair .hdel { padding: 7px 11px; }
+.chip {
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 7px 13px;
+  font: inherit; font-size: calc(13px * var(--fs-scale, 1));
+  cursor: pointer;
+}
+.chip.on { background: var(--ink); color: var(--cream); border-color: var(--ink); }
+/* 「软签」：味笺的推荐词那一族，选中时不用墨底（墨底在那一排里太重），用一层暖纸。
+   0.6.0 之前这里写死两个浅色 #efe2d4 / #d8c4ae —— 深色模式下它就成了整屏唯一一块
+   亮米色（逐屏视觉审查把它抓成「深色下唯一一处亮块」）。
+   现在从 --seal 与纸色调：两套纸各自调出各自的暖调，不必为夜里再写一份。
+
+   **为什么用 rgb() 而不是 color-mix()**：`color-mix` 算出来的 computed value 是
+   `color(srgb 0.9 0.79 0.75)` 这种形状，而这一仓里所有量对比度的门（contrast / a11y /
+   视觉审查）都是按 `rgba?(…)` 解析颜色的。换成 color-mix 会让那些门读到 null 然后崩，
+   或者更糟——静默跳过这一个元素（那就是「门还在、但这一格不再被量」）。
+   在这里写两个确定的 rgba 比让五道门各改一遍解析器便宜得多，也稳得多。
+   两个值都是从原 #efe2d4 / #d8c4ae 与 `--seal` 混合后取的近似，白天用纸色那组。 */
+.chip.soft.on { background: #f4e8da; color: var(--ink); border-color: #ddc8b0; }
+/* 夜里换一组暗的：同样从印章红里调，但压在夜纸上（叠 14% 的 #c97164 到 #232019 上）。 */
+:root[data-theme="dark"] .chip.soft.on { background: #3a2b25; border-color: #4d3a31; }
+
+/* 测试订阅：折叠起来只占一行，展开才露四枚小签 */
+/* 开笺 / 送点的唯一入口（第 31 轮那句「笺点不足，去展开测试订阅」指的就是这一格）。
+   以前 padding 只有 6px，量出来 30.6px 高：一行小字，签还是这屏里最能做事的一个。 */
+.topup summary { cursor: pointer; list-style: none; padding: 10px 0; }
+.topup summary::-webkit-details-marker { display: none; }
+.topup summary::after { content: " ▾"; letter-spacing: 0; }
+.topup[open] summary::after { content: " ▴"; }
+
+/* 隐私政策那一处入口（第 62 轮）：链上的字**就是**那条网址——用户按下去之前要能确认
+   自己去的是哪儿，所以它不许被收成「隐私政策」四个字。
+   颜色只用现成的墨：--ink 压在纸上 12.98:1，下划线是 UA 给链接的默认款。
+   网址里没有空格，不给换行规则的话 390px 这张纸会被它撑破。
+   padding 那 6px 是给手指的：这一枚本身只有 20px 高。原来写 6px 上下，实测 32px——
+   离 WCAG 2.5.5 的 44 还差 12，而它是这一屏唯一那条「真的去打开」的路，所以补到 44。 */
+.privacy { margin-top: 12px; }
+.policy-url { display: block; margin-top: 4px; padding: 12px 0; color: var(--ink); font-size: calc(13px * var(--fs-scale, 1)); overflow-wrap: anywhere; text-underline-offset: 3px; }
+
+/* 忌口收成一行之后，人卡里那 22px 的页眉间距就显得卡片空了；行内收到 10px */
+#people .card .topbar { margin-bottom: 10px; }
+
+/* 忌口收成一行后，「没人忌口」是句说明不是标签：跟着小签的基线走，别被 flex 拉高 */
+.who-none { align-self: center; letter-spacing: .04em; }
+
+textarea, input[type=text], input[type=number] {
+  width: 100%; border: 1px solid var(--line); background: var(--cream);
+  border-radius: 14px; padding: 12px 14px; font: inherit; font-size: calc(16px * var(--fs-scale, 1)); color: var(--ink);
+  resize: vertical; min-height: 44px;
+}
+/* 多行输入框的高度：120px 这个数以前和行高对不上。
+   font-size 16px + line-height 1.55（body 那条）= 24.8px 一行，上下 padding 各 12、
+   边框各 1，于是内容区 = 120 - 24 - 2 = 94px，94 / 24.8 = **3.79 行**。
+   言笺那个「贴一段聊天」的框里，第四行永远只露出上面四分之三，
+   底边横着一道被切开的笔画；而它右边的 resize 手柄又提示「还能拉高」，看着像故意裁的。
+   算「N 整行」时有个坑，第一版踩了：textarea 的滚动可视区**连 padding 一起算**，
+   所以文字从 padding-top 起算，第 N+1 行只要还压在 padding-bottom 那 12px 里就会露半截。
+   实测 125.2px（内容正好 4 行）时底边漏出第五行约 12px；150px（5 行）时漏出第六行。
+   正确的算法是 clientHeight = padding-top + N×行高（**不加 padding-bottom**，
+   它只是滚到底时的余量）：5 行 = 2(边框) + 12(padding-top) + 5×24.8 = 138px。
+   这样第 6 行正好从可视区下沿开始，一行字都不会被横切开。
+   行高倍数跟着 body 走（字号档位一变它也跟着变），所以用 calc 而不是写死一个数。 */
+textarea { min-height: calc(5 * (16px * var(--lh-body, 1.55)) + 14px); }
+.file { display: none; }
+/* 柜子的搜索框吃掉整条 bar 的余量。min-width:0 是必须的：flex 子项默认不许缩到
+   内容宽度以下，360 宽时一个 width:100% 的输入框会把纸边顶出去。 */
+.search { flex: 1; min-width: 0; }
+/* 味笺人卡上的名字（第 63 轮：以前是一个 <b>，打错一个字只能移除重加）。
+   它就是那一行的字，不是嵌在页眉里的一条搜索框：字号字重色都跟着全局那条 input 走，
+   只把 12px 的呼吸压回行内的紧凑档。flex:1 + min-width:0 与 .search 是同一条坑——
+   少了 min-width:0，360 的纸上「移除」会被顶出纸边。
+   描边留着实心（不透明、也不靠 hover 才出现）：这一格的作用是「告诉你名字改得动」，
+   平时看着像一行字的输入框，就是把入口藏起来。 */
+#people .name-edit {
+  flex: 1 1 auto; min-width: 0;
+  /* 38 → 44：这一格是「改名字」的唯一入口，实测 246×38 —— 高度差 6px（2.5.5）。
+     行高由 .rowbtn 那一族定，抬到 44 不改这一排的排布。 */
+  min-height: 44px; padding: 5px 10px; border-radius: 12px;
+}
+/* 「移除」那一枚不许被挤成两行：它跟着名字同一排，输入框一宽就先压到它身上。
+   上面那条 min-width:0 只挡住了「顶出纸边」，挡不住「在纸内折行」——
+   全量 e2e 那两格（360px/390px 标签不折字）实测抓出来的就是这个。
+   让输入框去缩（它本来 flex:1 1 auto + min-width:0），签保持自己的自然宽度。 */
+#people .topbar .chip { flex: 0 0 auto; white-space: nowrap; }
+
+/* ---------- 卡片 ---------- */
+
+.card {
+  background: var(--cream);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px;
+  box-shadow: var(--lift);
+}
+
+/* ---------- 底栏 ---------- */
+
+.nav {
+  position: fixed; left: 50%; bottom: 0; transform: translateX(-50%);
+  width: 100%; max-width: 480px;
+  /* 底栏是「一层半透的纸」，所以同样是纸色、同样不能写死白天的值。
+     写死米色的话，夜里整屏就只剩这一条亮带——实测就是像屏幕底部漏光。
+     透明度的 .92 在白天那支 fallback 里，夜里由 styles-v06.css 给 (27,25,23,.96)。 */
+  background: var(--paper-wash, rgba(244, 239, 230, .92));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid var(--line);
+  display: flex; justify-content: space-around;
+  /* 用 --sab 而不是直接写 env()：全文件只有这一处绕过那个旋钮，而 `--sab` 存在的意义
+     就是「安全区只有这一个来源」。绕过它的后果是实测的——e2e §55 想把安全区拨到
+     手势条那一档来量底栏，结果底栏纹丝不动：env() 在桌面浏览器里恒为 0，
+     这一处就永远量不到。改成同一个旋钮之后行为不变，只是终于可测了。 */
+  padding: 8px 8px calc(8px + var(--sab));
+  z-index: 20;
+}
+.nav button {
+  background: none; border: none; font: inherit; font-size: calc(12px * var(--fs-scale, 1));
+  color: var(--ink-soft); padding: 8px 10px; letter-spacing: .12em;
+  min-width: 56px; cursor: pointer;
+}
+.nav button.on { color: var(--ink); font-weight: 600; }
+/* 当前页是一枚小印：印章红的圆点，而不是一条线 */
+.nav button.on::after {
+  content: ""; display: block; width: 5px; height: 5px;
+  background: var(--seal); border-radius: 50%;
+  margin: 5px auto 0;
+}
+
+/* ---------- 衣笺 ---------- */
+
+.hero-cloth {
+  height: 58vh; min-height: 320px; border-radius: 20px; overflow: hidden;
+  position: relative; margin: 18px 0 20px; border: 1px solid var(--line);
+  box-shadow: var(--lift);
+  /* 它现在是个 <button>：把 UA 带来的底色、内距、居中、字体全部收回 */
+  display: block; width: 100%; padding: 0; background: none;
+  font: inherit; color: inherit; text-align: left; appearance: none; -webkit-appearance: none;
+}
+/* #heroInner 自己得铺满，否则里面的 img 的 height:100% 对一个 auto 高度父级求解，
+   照片填不满框，底部会露出一条灰带 */
+#heroInner { position: absolute; inset: 0; }
+.hero-cloth .swatch, .hero-cloth img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.hero-cloth .cap {
+  position: absolute; left: 16px; bottom: 16px; z-index: 1; color: var(--cream);
+  /* 和柜格标签同一副办法：文字那一行离底边 29px，渐变到那里只剩 .56，
+     压在近白的衣物上只有 4.1:1。给它自己的底，对比度就成了常数。 */
+  background: var(--ink); padding: 3px 10px 4px; border-radius: 8px;
+  text-shadow: none;
+}
+/* 没选图时这一格是空的——给它实底，空着就是一颗悬着的墨点（商店截图里第一眼就能看到）。 */
+.hero-cloth .cap:empty { display: none; }
+/* 槽位被占住之后要看得出还能改；整块纸本来就是按钮，点这枚小签同样开相册 */
+.hero-cloth .cap .swap {
+  display: inline-block; margin-left: 10px; padding: 2px 10px;
+  background: var(--cream); color: var(--ink); border-radius: 999px;
+  font-size: calc(11px * var(--fs-scale, 1)); letter-spacing: .08em; vertical-align: 2px;
+  text-shadow: none;
+}
+
+/* 柜子是三列网格。**空态也会被塞进这个网格里**（yi.js 在 list 为空时
+   往 #closet 里写一个 .empty），而 .empty 没说自己跨几列——
+   于是它被当成一格，宽 110px、跟着 .item 的 aspect-ratio 一起被压扁：
+   实测柜子空时「柜里还空着。放几件常穿的进来，过笺才有得比。」
+   被折成每行三四个字的竖条，那枚「＋ 放第一件」也被挤成三行。
+   空态不是一件衣服，它属于整张纸：跨满三列，高度回到内容自己决定。 */
+.closet > .empty { grid-column: 1 / -1; aspect-ratio: auto; }
+
+.closet { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.item {
+  aspect-ratio: .78;
+  border-radius: 14px;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid var(--line);
+  background: var(--paper-2);
+  cursor: pointer;
+}
+.item img, .item .swatch { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* 凡是把字压在图上的地方都垫一层底部渐变。标签压在浅色衣物上
+   （种子柜里白衬衫/白鞋/奶油半裙三道都是近白）时，原来 .52 的遮罩只有 3.74:1；
+   抬到 .68 → 6.34:1，同时把色带从 46% 收短到 34%，免得半张瓷砖发灰。 */
+.item::after,
+.compare .box::after,
+.hero-cloth::after {
+  content: "";
+  position: absolute; left: 0; right: 0; bottom: 0; height: 34%;
+  background: linear-gradient(to top, rgba(20, 18, 16, .68), transparent);
+  pointer-events: none;
+  border-radius: inherit;
+}
+.item.add::after { display: none; }
+
+.item .tag {
+  position: absolute; left: 6px; right: 6px; bottom: 6px;
+  z-index: 1;
+  font-size: calc(11px * var(--fs-scale, 1)); color: var(--cream);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, .35);
+}
+/* 压在图上的名字得有自己的底：底部那道渐变救不了它——文字那一行离底边 13px，
+   遮罩已经淡到 .49，实测「白鞋」那一格只有 3.18:1（11px 字要 4.5）。
+   实底胶囊把对比度变成一个常数，contrast 那道守门从此能真的量它，不再显式跳过。 */
+.item .tag, .compare .tag {
+  background: var(--ink); color: var(--cream);
+  left: 6px; right: auto; max-width: calc(100% - 12px);
+  padding: 2px 7px 3px; border-radius: 7px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  text-shadow: none;
+}
+.item.add {
+  display: flex; align-items: center; justify-content: center;
+  color: var(--ink-soft); font-size: calc(28px * var(--fs-scale, 1)); background: transparent;
+  border-style: dashed;
+}
+.item.edit .tag::after { content: " ×"; }
+
+/* ---------- 柜子：穿着记忆 ---------- */
+
+.item.sel { outline: 2px solid var(--ink); outline-offset: 2px; }
+.item:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+/* 穿着次数徽章。**底和字必须成对地跟着主题走**，这两行以前各自写死了一半：
+   底是写死的 #faf7f1（cream）88% 半透明，字却取的是 var(--ink)。
+   白天 --ink 是深墨，压在浅底上 13.63:1，看着没问题；
+   夜里 --ink 翻成 #e8e2d6（浅字），底还是那块浅米色 ——
+   实测 **1.05:1**，柜子里每格右上角那个次数在深色纸上几乎整块消失
+   （深色截图里「白鞋 15」那枚气泡是一片糊的米色）。
+   改法：底与字都从 token 取，--ink 作底、--cream 作字——正是 .item .tag 那颗
+   名字胶囊的同一对，白天 13.9:1、夜里 12.72:1，主题一换自动跟着走。
+   半透明也去掉：这颗气泡底下是衣物色块（可能是任意颜色），
+   不透明底才让对比度成为常数，而不是「取决于这件衣服是什么颜色」。 */
+.item .worn {
+  position: absolute; right: 6px; top: 6px; z-index: 2;
+  min-width: 20px; height: 20px; padding: 0 5px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--cream);
+  font-size: calc(11px * var(--fs-scale, 1)); line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+/* 「久了没穿」那一枚：底色换成印章红。红底配 --cream 在白天是 4.9:1、
+   夜里 4.71:1，两档都过正文档（11px 要 4.5）。原来配的是写死的 .9 半透明红，
+   压在深色纸上的实际颜色比 token 更暗，夜里那档只有 3.9:1。 */
+.item .worn.idle { background: var(--seal); color: var(--cream); }
+
+/* 主色取色器：判定唯一吃的那个输入。控件本身要够高（手指点得着），
+   色值单独用文本写一遍——取色器里那块颜色说不清自己是多少，读屏器也念不出来。
+   40 → 44：2.5.5 那条线是 44，40 差 4px（宽度 58 够）。 */
+.colorrow { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
+.colorrow input[type=color] {
+  width: 58px; height: 44px; padding: 2px; flex: none;
+  border: 1px solid var(--line); border-radius: 10px;
+  background: var(--cream); cursor: pointer;
+}
+.colorrow .hex { font-size: calc(12px * var(--fs-scale, 1)); color: var(--ink-soft); letter-spacing: .04em; font-variant-numeric: tabular-nums; }
+
+.action-bar {
+  margin-top: 12px;
+  padding: 14px;
+  background: var(--cream);  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--lift);
+  animation: rise .25s var(--ease-out);
+}
+.action-head { display: flex; gap: 12px; align-items: center; }
+.action-head b { font-weight: 500; }
+.swatch-sm {
+  width: 40px; height: 40px; border-radius: 10px;
+  border: 1px solid var(--line); flex: none;
+}
+
+.empty {
+  position: relative;
+  padding: 30px 74px 28px 18px;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  color: var(--ink-soft);
+  font-size: calc(13px * var(--fs-scale, 1));
+  text-align: left;
+  line-height: 1.9;
+}
+/* 空态的留白处盖一枚没蘸墨的印：只留轮廓，表示「这一页还没发生」。
+   ── 这枚 ::before 是旧版空态的**唯一**装饰，那时 .empty 只有一句话、
+   右边专门留了 74px 的空白给它。v0.6.0 给空态加了 .empty-印
+   （一个能写字的虚线圆，62px，居中），于是同一句话旁边同时挂着两个「没蘸墨的圆」：
+   一个在正上方居中，另一个半截从右边缘探出来，还正好压在第二行字上
+   （味笺引导空态实测：「这桌还缺什么。」的句号被那道弧啃掉一半）。
+   只有带 .empty-印 的新空态才需要收掉这枚旧装饰；老的那些（衣笺柜子、言笺归档）
+   仍是纯文字，留着它才不是一块空白。
+   :has() 与 .seg 的三段规则、本文件的 .badge:has(.bg-prog) 是同一副写法。 */
+.empty::before {
+  content: "";
+  position: absolute; right: 16px; top: 50%;
+  width: 42px; height: 42px; margin-top: -21px;
+  border: 1.5px solid var(--line); border-top-color: transparent; border-radius: 50%;
+  transform: rotate(-12deg);
+}
+.empty:has(.empty-印)::before { content: none; }
+/* 带印的空态是**居中**的一段话（.empty-印 自己就是 margin:0 auto），
+   右边界不用再给那枚角落装饰让路；74px 的右内距在这里只剩「整段话往左偏」。 */
+.empty:has(.empty-印) { padding: 28px 18px; text-align: center; }
+
+/* 不带印的那几种空态（衣笺柜子、言笺归档、味笺引导）只有一个居中的圆要吃位置。
+   ── 上面那条 `padding: 30px 74px 28px 18px` 是给**左侧长文 + 右侧那枚圆**准备的，
+   但 styles-v06.css 后来也写了一条 `.empty`（居中对齐、padding: 28px 10px），
+   两份叠在一起的结果是：文字居中、右边那 74px 的空白没了，而 42px 的圆还钉在
+   right:16px / 垂直居中上 —— 圆就横穿在正文里。
+   味笺引导空态实测：「它会告诉你谁吃不了哪道、这桌还缺什么。」这句的末尾
+   正好从那道弧中间穿过去（截图里句号被弧线切了一道）。
+   改法：圆不跟字抢地方，退到正文下方那道内距里做一枚页脚印——
+   居右下角、不参与文字流，字也不再为了它让出一条 74px 的空白（那样居中的段落会整体偏左）。
+   视觉上仍然是「这一页还没发生」，但不再有任何一笔压在字上。 */
+.empty:not(:has(.empty-印)) {
+  padding: 26px 22px 62px;
+  text-align: center;
+}
+.empty:not(:has(.empty-印))::before {
+  top: auto; bottom: 12px; right: 50%;
+  margin: 0 -21px 0 0;             /* 42px 的圆：右移自身一半 → 水平居中 */
+}
+
+/* ---------- 衣笺首屏：那块大纸本身就是「点这里放照片」 ---------- */
+
+.hero-cloth { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.hero-cloth:focus-visible { outline: 2px solid var(--seal); outline-offset: 3px; }
+/* 还没选图时不要那层压暗渐变，纸白就是纸白 */
+.hero-cloth.asking::after { display: none; }
+.hero-cloth .ask {
+  position: absolute; inset: 0; z-index: 1;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 20px; padding: 0 26px; text-align: center;
+}
+/* 图选进来之后这层提示必须让位，否则「点这张纸，放照片」会压在照片上 */
+.hero-cloth:not(.asking) .ask { display: none; }
+/* 同一枚未蘸墨的印，从空态放大到首屏的分量 */
+.hero-cloth .ask::before {
+  content: ""; flex: none;
+  width: 96px; height: 96px;
+  border: 2px solid var(--line); border-top-color: transparent; border-radius: 50%;
+  transform: rotate(-12deg);
+}
+.hero-cloth .ask b {
+  display: block;
+  font-family: "Songti SC", "Noto Serif SC", "STSong", "SimSun", serif;
+  font-size: calc(19px * var(--fs-scale, 1)); font-weight: 500; letter-spacing: .06em; color: var(--ink);
+}
+.hero-cloth .ask span { display: block; margin-top: 7px; font-size: calc(12px * var(--fs-scale, 1)); color: var(--ink-soft); letter-spacing: .04em; }
+
+/* 柜况：统计一行、提示一行，别挤成一行被屏幕切掉半句 */
+#closetNote span { display: block; line-height: 1.8; }
+/* 第二行原来用 opacity:.72 退后，12px 的字被压到 2.95:1。改成让它俩比：
+   统计是数据，提实给 --ink；提示留着 --ink-soft（纸白上 4.93:1），一实一虚就分得开。 */
+#closetNote span:first-child { color: var(--ink); }
+/* 摘要里那排「今天穿了」的签：紧贴文字排，但只收 padding——触摸高度不许掉到 24px 以下
+   （第 9 轮那条底线：.chip 平时 34px，这里 26px 已经是下限，再小就该改用别的控件）。 */
+#closetNote .chip { padding: 4px 11px; margin: 0 0 0 6px; vertical-align: middle; }
+
+/* ---------- 笺册：一枚印 + 一行眉 + 一句正文，和报告同一副骨架 ---------- */
+
+/* 笺册的一行现在点得动（再复制那张笺），所以它是个 <button>。
+   按钮的 UA 默认会把文字居中、带内边距和系统底，这里全部按纸卡重新压平。 */
+button.slip { display: block; width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.slip { position: relative; padding: 14px 16px 15px; }
+.slip-copy { display: block; text-align: right; margin-top: 8px; letter-spacing: .12em; }
+.slip-top { display: flex; align-items: center; gap: 7px; margin-bottom: 10px; }
+.slip-top .meta { font-size: calc(11px * var(--fs-scale, 1)); letter-spacing: .18em; }
+.slip-date { margin-left: auto; font-size: calc(11px * var(--fs-scale, 1)); color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.slip-body { font-size: calc(15px * var(--fs-scale, 1)); line-height: 1.8; }
+/* 结论章是这页最响的字，不再套引号 */
+.slip-stamp { color: var(--seal); font-weight: 500; margin-right: 6px; }
+/* 笺册的一行 = 卡片 + 右上角两枚小键（全文 / ×）。两枚都在卡片**外面**（DOM 上）：
+   整张卡片是个 <button>，而 button 里不许有交互内容（第 23 轮那个嵌套 <label> 是同一条规定），
+   塞进去解析器会把外层 button 当场闭合，「再复制」那行会掉到卡片外面。
+   但视觉上它们得压在卡片的框里——第一版给 × 单独一列，截图上看就是一个浮在纸外的记号，
+   像卡片缺了一角。所以：行是 relative，两枚装进一个绝对定位的组，眉上那排日期给整组让位。 */
+.slip-row { position: relative; }
+.slip-row .slip-acts { position: absolute; top: 5px; right: 6px; display: inline-flex; gap: 2px; }
+.slip-row .drop, .slip-row .toggle {
+  background: none; border: none; font: inherit; cursor: pointer;
+  color: var(--ink-soft); line-height: 1; padding: 8px; border-radius: 10px;
+}
+.slip-row .drop { font-size: calc(17px * var(--fs-scale, 1)); }
+.slip-row .toggle { font-size: calc(12px * var(--fs-scale, 1)); letter-spacing: .06em; }
+.slip-row .drop:active, .slip-row .toggle:active { color: var(--seal); }
+.slip-row .slip-top { padding-right: 86px; }
+.slip-body.full { white-space: pre-wrap; }
+
+/* ---------- 报告页的收束 ---------- */
+
+.signoff {
+  display: flex; align-items: center; gap: 12px;
+  justify-content: flex-start;
+  margin-top: 26px; color: var(--ink-soft);
+}
+.signoff::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.signoff span {
+  font-family: "Songti SC", "Noto Serif SC", "STSong", "SimSun", serif;
+  font-size: calc(13px * var(--fs-scale, 1)); letter-spacing: .22em; white-space: nowrap;
+}
+
+/* ---------- 报告 ---------- */
+
+.report {
+  background: var(--cream);
+  border: 1px solid var(--line);
+  padding: 22px 18px 30px;
+  border-radius: 8px;
+  position: relative;
+  box-shadow: var(--lift);
+}
+.compare { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 8px; margin: 14px 0; }
+/* 三格等高：aspect-ratio 只给最宽的那一格——它是主角，靠宽度赢就够了。
+   以前三格各按各的宽度算比例，底边差出 50px，看着像没对齐的事故。 */
+.compare .box { border-radius: 10px; overflow: hidden; border: 1px solid var(--line); position: relative; }
+.compare .box:first-child { aspect-ratio: .8; }
+.compare .tag {
+  position: absolute; left: 6px; right: 6px; bottom: 6px;
+  z-index: 1;
+  /* 这里原来是写死的 #faf7f1。下面那条 `.item .tag, .compare .tag` 给它配的底是
+     var(--ink)——白天是深墨、**夜里是浅墨**，于是夜里的纸上一枚浅底白字，实测 1.21:1，
+     报告页最要紧的那三个字（「想买」）彻底看不见。改成跟着同一个 token 走。 */
+  font-size: calc(11px * var(--fs-scale, 1)); color: var(--cream); text-shadow: 0 1px 4px rgba(0, 0, 0, .4);
+}
+.compare img, .compare .swatch { width: 100%; height: 100%; object-fit: cover; }
+#reportNote {
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+  line-height: 1.7;
+}
+
+.stamp {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 72px; height: 72px; border: 3px solid currentColor;
+  border-radius: 50%;
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: calc(18px * var(--fs-scale, 1)); letter-spacing: .12em;
+  transform: rotate(-12deg);
+}
+.stamp.no { color: var(--seal); }
+.stamp.mid { color: var(--seal-2); }
+.stamp.yes { color: var(--ok); }
+.report .stamp { position: absolute; right: 18px; top: 18px; background: var(--cream); }
+/* 章压在纸上是真的印章会做的事，但不该把第三格对比框的照片盖掉一块。
+   章是 72px 圆 + 3px 边 + 转 12°，量出来的视觉外框约 85px，下沿落在离纸内边 103px 处；
+   对比框那一排原来只留了 14px（实测重叠 3314px²，360/390/412 三档一样）。
+   这个数由 e2e 第 4 节那条「章不许压住对比框」钉着：谁把它改小，那条就红。 */
+.report .compare { margin-top: 64px; }
+
+/* 结论章的落章瞬间：整份产品唯一的大动效，其余一切都要安静。
+   回弹感由关键帧（62% 处压到 .97）给出，缓动本身用纯 expo，不引入 bounce。 */
+.stamp.press { animation: stamp-press .42s var(--ease-out) both; }
+@keyframes stamp-press {
+  0% { opacity: 0; transform: rotate(-22deg) scale(1.55); }
+  62% { opacity: 1; transform: rotate(-11deg) scale(.97); }
+  100% { transform: rotate(-12deg) scale(1); }
+}
+
+/* ---------- 味笺 / 言笺 ---------- */
+
+.list { display: flex; flex-direction: column; gap: 8px; }
+.todo {
+  display: grid; grid-template-columns: auto 1fr; gap: 10px;
+  padding: 12px; background: var(--cream); border: 1px solid var(--line); border-radius: 14px;
+}
+.todo b {
+  font-size: calc(11px * var(--fs-scale, 1)); letter-spacing: .14em; font-weight: 500;
+  align-self: start; padding: 1px 8px;
+  border: 1px solid rgba(181, 74, 60, .55); border-radius: 4px;
+  color: var(--seal); white-space: nowrap;
+}
+
+.check {
+  /* 勾选框那一列的宽度：一个数管四处（下面三条网格声明 + 框本身），免得又长成两份口径 */
+  --ck-col: 24px;
+  display: grid; grid-template-columns: var(--ck-col) auto 1fr auto; gap: 10px; align-items: start;
+  padding: 12px 14px; background: var(--cream); border: 1px solid var(--line); border-radius: 14px;
+  margin-bottom: 8px;
+}
+.check input { margin-top: 4px; accent-color: var(--ink); min-width: var(--ck-col); min-height: 24px; }
+/* 勾选框以前是浏览器默认的 22×13：整行的 label 让它点得到，但那一格 13px 高的方框
+   是这一屏最主要的一个动作（办完了）。给它一个方的、和网格里那一列一样宽的位置。 */
+/* 时间/无时间是眉料，不是内容：让它贴着字宽走，正文才有分量 */
+.check b { font-size: calc(11px * var(--fs-scale, 1)); font-weight: 500; color: var(--ink-soft); letter-spacing: .06em; padding-top: 3px; white-space: nowrap; }
+/* 行不再是整片一个 label（读屏器念复选框的名字会把「挪 / 时间 / ×」一起念进去）；
+   label 只包住复选框、眉料与正文，display:contents 让这三个孩子照样直接站进行里的网格。
+   正文因此从 .check 的孙子变成 label 的孩子，选择器跟着换成 .ck-body。 */
+.ck-main { display: contents; }
+.check .ck-body { font-size: calc(15px * var(--fs-scale, 1)); line-height: 1.7; }
+/* 搜索命中的那一小截。底色用印泥的淡版而不是荧光黄：这张纸是暖白的，
+   高亮该像被朱笔点过一下，不像网页上糊了一道荧光笔。
+   文字仍是 --ink，底色比纸深一点点，对比度反而比裸在纸上更高。
+   0.6.0：原来写死 #f0dcc8，夜里那道高亮就成了纸上的一块亮斑；现在给两套纸各一个值。
+   **不用 color-mix**：它算出来的 computed value 是 `color(srgb …)`，
+   而量对比度的门一律按 `rgba?(…)` 解析——换成它等于让这一格从所有门里消失。 */
+mark {
+  background: #f2ddc6; color: var(--ink); padding: 0 1px; border-radius: 2px;
+}
+:root[data-theme="dark"] mark { background: #4a3228; }
+.check.no-when { grid-template-columns: var(--ck-col) 1fr auto; }
+/* 行上的 ×：以前整张笺只有「清空这张」，删一条得全清重来。有了一次反悔，
+   才敢把它直接摆在行上。视觉小、热区靠负 margin 撑出来，不吃行高。 */
+.check .drop {
+  background: none; border: none; font: inherit; cursor: pointer;
+  color: var(--ink-soft); font-size: calc(17px * var(--fs-scale, 1)); line-height: 1;
+  /* 热区 34 → 44：同 .mover/.wtimer 那一条。33×33 的「×」是这一行最容易误触的一枚。 */
+  margin: -9px -8px -9px 0; padding: 9px; border-radius: 10px; min-height: 44px; min-width: 44px;
+}
+.check .drop:active { color: var(--seal); }
+/* 一行三个动作：挪类别 + 改时间 + 删掉。挤在同一格里，网格列数不变（第 4 列还是 auto）。
+   「挪」「时间」平时只是一个字的 ghost，展开后那一行才长出三枚签——猜错的类别不该逼用户删掉整条。
+   热区：34 → 44（WCAG 2.5.5 的下限；34 是第 41 轮那条「不小于 32」的旧线）。
+   这一行在 390 宽的纸上动作栏**独占一行右对齐**（见下面 max-width:400 那一条），
+   四枚 44 宽共 176px，离纸边还有一半余量，所以抬到 44 不改版式。 */
+.check .acts { display: inline-flex; align-items: flex-start; gap: 2px; }
+.check .acts .drop { margin: -9px -8px -9px 0; }
+.check .mover, .check .wtimer {
+  background: none; border: none; font: inherit; cursor: pointer;
+  color: var(--ink-soft); font-size: calc(11px * var(--fs-scale, 1)); letter-spacing: .06em; line-height: 1;
+  margin: -9px 0; padding: 12px 8px; border-radius: 10px; min-height: 44px; min-width: 44px;
+}
+.check .mover[aria-expanded="true"], .check .wtimer[aria-expanded="true"] { color: var(--ink); font-weight: 600; }
+.check .mover:active, .check .wtimer:active { color: var(--seal); }
+.check > .move-chips {
+  grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px;
+  margin-top: 10px; font-size: calc(12px * var(--fs-scale, 1)); line-height: 1.4;
+}
+/* 挑一天：原生日期控件在安卓壳里起的是系统选择器，这里只把它捏成纸上的一格。
+   它是行 <label> 里的交互子元素，点它不会顺手勾掉这一条（规范里 label 的激活行为
+   对 interactive content 后代不生效），所以不用像按钮那样再挡一层。
+   衣笺编辑器里那枚「上次穿」的日期框（第 59 轮）共用同一档尺寸，不再抄第二份。 */
+.check > .move-chips .datepick, .action-bar .datepick {
+  display: inline-flex; align-items: center; gap: 6px; color: var(--ink-soft);
+}
+.check > .move-chips input[type="date"], .action-bar input[type="date"] {
+  /* 高度 34 → 44：它和工作日历里那一枚共用这一档（2.5.5）。实测 42.8px，
+     因为 min-height 34 只是下限，行高把它撑到 42.8——差 1.2px 也是不合格。 */
+  font: inherit; color: var(--ink); background: var(--paper);
+  border: 1px solid var(--line); border-radius: 10px; padding: 7px 8px; min-height: 44px; min-width: 132px;
+}
+/* 划掉的一行要退到后面，但还得读得清。原来整行 opacity:.45 把正文压到 2.66:1、
+   时间眉压到 1.8:1。改成换色（--ink-soft 在纸白上 5.28:1），「已了结」交给删除线说。 */
+.check.done div { color: var(--ink-soft); text-decoration: line-through; }
+
+/* 窄屏：一行三个动作（挪 / 时间 / ×）实测把正文挤到 67px —— 四个字一行，
+   正文成了竖排。动作是工具，正文是内容，工具不该把内容压扁：360~400 这一段
+   让动作换到正文下面那一行，右对齐（展开的那排签本来就在下一行，接得上）。 */
+@media (max-width: 400px) {
+  .check { grid-template-columns: var(--ck-col) auto 1fr; }
+  .check.no-when { grid-template-columns: var(--ck-col) 1fr; }
+  .check .acts { grid-column: 1 / -1; justify-self: end; margin-top: 4px; }
+}
+
+/* 说话人小签：印章红细框，一枚不抢戏的纸签 */
+.speaker {
+  display: inline-block;
+  margin-right: 7px;
+  padding: 1px 8px;
+  border: 1px solid rgba(181, 74, 60, .55);
+  border-radius: 4px;
+  color: var(--seal);
+  font-size: calc(11px * var(--fs-scale, 1));
+  line-height: 1.6;
+  letter-spacing: .08em;
+  vertical-align: 2px;
+  white-space: nowrap;
+}
+
+/* 引导页那三张选择卡做成了 <button>（以前是带 onclick 的 div，读屏器与键盘都够不着）。
+   button 自带一套 UA 样式，要按这张纸的样子压回去；「选中」从 outline 改成 inset 阴影——
+   因为 outline 是全局 :focus-visible 那圈印章红描边在用的一条，选中环会把焦点环吃掉，
+   键盘用户看不出自己站在哪一张上。 */
+button.mode-card { display: block; width: 100%; font: inherit; color: inherit; text-align: left;
+  background: var(--cream); border: 1px solid var(--line); }
+.mode-card { cursor: pointer; }
+.mode-card.on { box-shadow: inset 0 0 0 2px var(--ink); }
+.mode-card b { display: flex; align-items: center; font-size: calc(17px * var(--fs-scale, 1)); letter-spacing: .06em; }
+.mode-card .tiny { display: block; margin-top: 4px; }
+
+/* 只给读屏器看的文字：不能用 display:none / visibility:hidden（那样读屏器也看不见），
+   也不能靠 0 字号——压成 1px 并裁掉、又留在无障碍树上，是这一块唯一稳的做法。 */
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+  overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }
+
+/* ---------- 上菜顺序 ---------- */
+
+.serving { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.serving .line {
+  display: grid; grid-template-columns: 24px auto 1fr; gap: 10px; align-items: baseline;
+  padding: 8px 10px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.serving .idx { font-size: calc(12px * var(--fs-scale, 1)); color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.serving .stage { font-size: calc(11px * var(--fs-scale, 1)); letter-spacing: .1em; color: var(--ink-soft); }
+.serving .dish { color: var(--ink); }
+
+/* ---------- 浮层 ---------- */
+
+/* 提示条停在底栏之上，而底栏自己会随安全区长高（`.nav` 的 padding-bottom 里加了 --sab）。
+   所以这一句的 96px 也必须加上 --sab：`viewport-fit=cover` 之下 viewport 是伸到手势条底下的，
+   手势条 48dp 的机器上不加这一项，那条能撤销的提示（三行高）会正好压在底栏上——
+   而它是刚删掉的东西唯一一次能救回来的入口。`.screen` 的 padding-bottom 早就加了，
+   这一处是漏的（e2e §55 拿「把 --sab 拨到 48px」量出来，桌面浏览器里 env() 恒为 0，看不见）。 */
+.toast {
+  position: fixed; left: 50%; bottom: calc(96px + var(--sab)); transform: translateX(-50%);
+  background: var(--ink); color: var(--cream); padding: 10px 16px;
+  border-radius: 999px; font-size: calc(13px * var(--fs-scale, 1)); z-index: 30;
+  animation: rise .25s var(--ease-out);
+  /* 80vw 在手机上是「留一点边」，在宽窗里会变成一条 1100px 的横幅 */
+  max-width: min(80vw, 360px); text-align: center;
+}
+/* 带撤销的那条：多一枚按钮，但墨底上不再引入第二种颜色——靠下划线和字距区分。
+   这枚签以前量出来是 18px 高（padding 只有 2px），而它是「刚删掉的东西唯一一次能救回来」
+   的唯一入口：手指按不准的撤销按钮等于没有撤销。 */
+.toast.act { display: flex; align-items: center; gap: 14px; text-align: left; }
+.toast.act button {
+  background: none; border: none; font: inherit; color: var(--cream);
+  cursor: pointer; flex: none; padding: 9px 12px 9px 16px; min-height: 34px;
+  margin: -6px -8px -6px -10px; border-radius: 999px;
+  text-decoration: underline; text-underline-offset: 3px;
+}
+
+.veil {
+  display: none;
+  position: fixed; inset: 0; z-index: 40;
+  background: var(--paper-veil, rgba(244, 239, 230, .72));
+  align-items: center; justify-content: center;
+}
+/* 字要落在一张**不透明**的小纸上。整层只有 72% 的纸色薄纱，底下是用户自己的照片——
+   照片深浅不定，小字直接压上去对比度就没法保证（contrast 那道门量的就是这个）。 */
+.veil-card {
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  min-width: 180px; max-width: 78vw; padding: 22px 24px;
+  background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius);
+  box-shadow: 0 10px 30px rgba(31, 27, 22, .18);
+}
+.veil-mark {
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  letter-spacing: .5em; text-indent: .5em;
+  /* 700 不是装饰：这颗章在呼吸动画里会淡到 --seal-2。--seal-2 现在对三张浅纸最差
+     4.67:1（本轮之前是 4.20，靠「22px 加粗算大字档只要 3:1」才勉强过）。
+     留着 700 是因为它在两套纸、四个关键帧上都成立，不是因为它还**必须**成立——
+     换成常规字重现在也过 4.5。改成 400 对比度门不会红，所以这条注释的价值只剩
+     「为什么当初这么写」那句话本身。 */
+  font-size: calc(22px * var(--fs-scale, 1)); font-weight: 700; color: var(--seal);
+  animation: veil-breath 1.8s var(--ease-out) infinite;
+}
+.veil-what { font-size: calc(13px * var(--fs-scale, 1)); line-height: 1.5; color: var(--ink); text-align: center; }
+.veil-off { margin-top: 2px; }
+/* .btn 是 display:inline-flex，作者样式会盖过 UA 的 [hidden]{display:none}——
+   不写这一条，「先不等了」会在每一层遮罩上都露出来。 */
+.veil-off[hidden] { display: none; }
+.veil.on { display: flex; }
+/* 淡的是颜色不是透明度：小字压 opacity 会掉到 WCAG AA 以下（本项目一律如此）。 */
+@keyframes veil-breath {
+  0%, 100% { color: var(--seal); transform: translateY(0); }
+  50% { color: var(--seal-2); transform: translateY(-3px); }
+}
+
+/* ---------- 笺纸（味笺/言笺结果页的纸面，与衣笺报告同族） ---------- */
+
+.sheet {
+  position: relative;
+  background: var(--cream);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 20px 16px 24px;
+  box-shadow: var(--lift);
+}
+.sheet .meta { margin-bottom: 4px; }
+.sheet .seal-mark.lg { position: absolute; right: 14px; top: 14px; }
+.sheet-cap { letter-spacing: .22em; color: var(--ink-soft); }
+.sheet .rule { height: 1px; background: var(--line); margin: 16px -16px; }
+.sheet .quote { margin: 6px 0 14px; }
+/* 「没当成菜的那几句」：回显的是用户自己写的话，用正文字而不是 .tiny 的淡墨——
+   它不是眉料，是要让人核对「这句它没当菜」。 */
+.note-line { font-size: calc(13px * var(--fs-scale, 1)); line-height: 1.65; color: var(--ink); margin-top: 3px; }
+
+/* 屏角大字水印：每个模块一个字，像纸页深处的暗纹。
+   水印故意出血 12px，可它同时把每一屏都撑出 12px 的横向可滚动区——手机上能左右晃出
+   一条缝。overflow-x: clip 只掐横向、留着纵向滚动，把出血裁在纸边（本来那 12px 也在屏幕外）。
+   老浏览器不认 clip 就当没这条，退回原样。 */
+.screen { position: relative; overflow-x: clip; }
+.screen::after {
+  content: attr(data-wm);
+  position: absolute; z-index: -1;
+  right: -12px; top: calc(var(--sat) - 12px);
+  font-family: "Songti SC", "Noto Serif SC", "STSong", "SimSun", serif;
+  font-size: calc(150px * var(--fs-scale, 1)); line-height: 1;
+  color: rgba(42, 39, 35, .04);
+  pointer-events: none;
+}
+
+/* 笺点卡：一张盖了印的笺 */
+.stampcard { position: relative; overflow: hidden; }
+.stampcard .corner { position: absolute; right: 14px; top: 14px; transform: rotate(-12deg); }
+
+/* ---------- 引导页 ---------- */
+
+.onboard-hero { display: flex; align-items: flex-start; gap: 16px; margin: 4px 0 8px; }
+.onboard-jian {
+  font-size: clamp(72px, 21vw, 92px);
+  line-height: 1;
+  letter-spacing: 0;
+  margin: 0;
+  font-weight: 400;
+}
+.onboard-jian::after { content: "。"; color: var(--seal); }
+.vert {
+  writing-mode: vertical-rl;
+  letter-spacing: .52em;
+  font-size: calc(11px * var(--fs-scale, 1));
+  color: var(--ink-soft);
+  margin: 8px 0 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .screen.on, .screen.on .mark, .stamp.press, .toast, .action-bar, .veil-mark { animation: none; }
+  html { scroll-behavior: auto; }
+}
+
+/* ---------- 宽窗（≥900px）----------
+   笺是手机上的东西，不做假平板。但一根 480 的列浮在满屏纸纹上，看着就是张拉长的手机截图。
+   宽窗时把这一栏立成桌上的一张纸：桌面退到 --paper-2，纸本身还是原来那张纸（同样的纸纹，
+   栏内一像素不动），只补一根发丝边和一点软影，底栏跟着纸收进列宽。 */
+@media (min-width: 900px) {
+  body { background: var(--paper-2); }
+  #app {
+    background:
+      linear-gradient(180deg, var(--paper-wash, rgba(244, 239, 230, .92)), var(--paper-wash, rgba(244, 239, 230, .92))),
+      repeating-linear-gradient(90deg, var(--grain, rgba(42, 39, 35, .015)) 0 1px, transparent 1px 7px);
+    background-color: var(--paper);
+    box-shadow: 0 0 0 1px var(--line), var(--lift);
+  }
+  .nav { border-left: 1px solid var(--line); border-right: 1px solid var(--line); }
+}

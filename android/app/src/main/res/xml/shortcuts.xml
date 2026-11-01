@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 桌面长按图标出现的快捷方式。走 jian://screen/<哪一屏>：
+     自定义 scheme 不需要域名验证（App Links 才要），也不会有网页误链进来。
+     图标沿用应用图标——笺只有一支印章，再造一套小图标只会对不上。
+
+     0.6.0 从三枚扩到五枚（上限就是 5，见 ShortcutManager 的文档）：
+     原来的三枚是「三张笺」，新加的两枚是「一天里最常做的两件事」——
+     看今天、随手记一笔。为什么是这两件而不是「笺谱」「我的」：
+     长按图标是**动手**的入口，统计与设置是**看**的入口，看的东西多一步不算麻烦。
+     再往上加就会顶满上限，所以先停在这里；真要加得先把哪一枚降级。 -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="yi"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_yi_short"
+        android:shortcutLongLabel="@string/shortcut_yi_long"
+        android:shortcutDisabledMessage="@string/shortcut_yi_short">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.jian.app"
+            android:targetClass="com.jian.app.MainActivity"
+            android:data="jian://screen/yi" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="wei"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_wei_short"
+        android:shortcutLongLabel="@string/shortcut_wei_long"
+        android:shortcutDisabledMessage="@string/shortcut_wei_short">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.jian.app"
+            android:targetClass="com.jian.app.MainActivity"
+            android:data="jian://screen/wei" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="yan"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_yan_short"
+        android:shortcutLongLabel="@string/shortcut_yan_long"
+        android:shortcutDisabledMessage="@string/shortcut_yan_short">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.jian.app"
+            android:targetClass="com.jian.app.MainActivity"
+            android:data="jian://screen/yan" />
+    </shortcut>
+    <!-- 「今日」：底栏第一枚那一屏。它不在「三张笺」里，但它是每天第一眼要看的地方。 -->
+    <shortcut
+        android:shortcutId="today"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_today_short"
+        android:shortcutLongLabel="@string/shortcut_today_long"
+        android:shortcutDisabledMessage="@string/shortcut_today_short">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.jian.app"
+            android:targetClass="com.jian.app.MainActivity"
+            android:data="jian://screen/today" />
+    </shortcut>
+    <!-- 「记一笔」：落到言笺的输入框。带 new=1 是为了让以后能在不动这枚快捷方式的前提下
+         演进成「清空输入框再来一笔」——地址本身已经表达了意图，改行为不用改系统注册表。 -->
+    <shortcut
+        android:shortcutId="note"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_note_short"
+        android:shortcutLongLabel="@string/shortcut_note_long"
+        android:shortcutDisabledMessage="@string/shortcut_note_short">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.jian.app"
+            android:targetClass="com.jian.app.MainActivity"
+            android:data="jian://screen/yan?new=1" />
+    </shortcut>
+</shortcuts>

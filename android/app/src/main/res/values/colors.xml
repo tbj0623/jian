@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 启动画面的底色：必须和 styles.css 里那个纸色变量取同一个值。
+         不填的话安卓 12 的系统启动图用默认冷灰，实测就是「灰屏 → 纸屏」跳一下，
+         整台机子的质感毁在这一下。改 styles.css 的纸色时记得一起改这里。
+         （XML 注释里不许写两个连字符，所以这里不引用变量名。） -->
+    <color name="splash_background">#f4efe6</color>
+    <!-- 系统控件的强调色，和 styles.css 里那个纸上的印章红是同一个值。
+         不写它，原生弹出来的控件全是 Material 默认青绿（实测日期选择器整个是青的），
+         一张纸上冒另一个品牌的颜色。白字压这个红是 5.24:1，AA 过。
+         （XML 注释里不许写两个连字符，所以这里不引用变量名。） -->
+    <color name="seal_red">#b54a3c</color>
+</resources>

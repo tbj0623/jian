@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 资源裁剪（shrinkResources）只认它在 XML 和代码里看得见的引用。
+     而 Capacitor 是拿名字去查的：AssetUtil 里 getIdentifier(名字, "mipmap"/"drawable"/"raw")、
+     SplashScreen 插件里 getIdentifier(resourceName, "drawable")——这类引用裁剪器看不见，
+     于是「编得过、装得上、启动时那张启动图没了」。这里点名钉住。
+     改启动图或图标名字时（scripts/generate-icons.py 的产物）记得一起看这里。 -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/splash,@drawable/splash_icon,@drawable/ic_stat_jian,@layout/activity_main,@mipmap/ic_launcher,@mipmap/ic_launcher_round,@mipmap/ic_launcher_foreground,@mipmap/ic_launcher_monochrome,@xml/shortcuts,@string/shortcut_yi_short,@string/shortcut_yi_long,@string/shortcut_wei_short,@string/shortcut_wei_long,@string/shortcut_yan_short,@string/shortcut_yan_long,@string/shortcut_today_short,@string/shortcut_today_long,@string/shortcut_note_short,@string/shortcut_note_long,@string/channel_remind_name" />
+<!-- @xml/shortcuts 与那十个标签也钉住：它们只被「清单里的 meta-data → xml → @string」这条链引用，
+     裁剪器跟不跟得住取决于 AGP 版本，而它一旦断掉的表现是——release 包里快捷方式静默消失，
+     debug 包一切正常。这种只在正式包上坏的事，不值得赌。
+     @drawable/ic_stat_jian 是同一类：remind.js 里它是**字符串常量**（smallIcon: "ic_stat_jian"），
+     裁剪器完全看不见这笔引用；一旦被裁掉，通知的小图标会退回系统默认的那个灰方块，
+     而且只有装 release 包才看得见。 -->

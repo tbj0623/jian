@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 夜里的纸。
+
+     为什么这一份必须是 values-night（而不是只在 styles.xml 里写死）：
+     系统切夜间模式时，凡是带 night 限定符的资源会整套换掉，
+     而 values/colors.xml 里那两支颜色是「白天的纸」与「纸上的印」。
+     0.6.0 起 Web 侧有真的夜纸（styles-v06.css 的 dark 主题变量），
+     原生这一层如果不跟，开机第一帧就是「深色界面里闪一张亮纸」，
+     实测过一闪比一直亮更刺眼。
+
+     取值规矩（改任何一支都要和 CSS 对一遍）：
+     - splash_background = styles-v06.css 里 dark 主题的纸色变量
+     - seal_red        = 同一个块里的印章红（夜里降了饱和，白字压它仍过 AA）
+     这两支只管原生自己画的那几帧（启动图、系统弹层强调色），页面里的纸色由 CSS 负责。 -->
+<resources>
+    <color name="splash_background">#1b1917</color>
+    <color name="seal_red">#c97164</color>
+</resources>

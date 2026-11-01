@@ -1,0 +1,378 @@
+/** 笺 · 言笺的样式（0.6.0）
+ *
+ *  只放言笺与提醒两屏新增的东西：月历、今天/今晚抽屉、归档、铃铛、摘录本。
+ *  **一个颜色都不在这儿定义**——全部从 styles.css / styles-v06.css 的变量取，
+ *  夜纸那套变量在 :root[data-theme="dark"] 里换值，这里跟着自动走。
+ *
+ *  触摸目标一律 ≥44px：这一版新增的按钮（月历翻页、抽屉收放、寄去别处、
+ *  摘录本那一排、三把筛）都是手指真的会去点的。
+ */
+
+/* ==================== 月历 ====================
+   这一块要看起来像一页真正的月历，不是七个格子里堆字：
+   · 七列严格对齐（.cal-grid 是 grid，styles-v06 已经定好，这里只调格内）；
+   · 今天有标记 —— 一枚印章红的圈，不是加粗（加粗在中文数字里根本看不出来）；
+   · 有事的日期带圆点 —— 自己画，不用 styles-v06 的 .cal-day.has::after：
+     那个圆点是固定位置的装饰，而这里的圆点要跟着「几件事」变；
+   · 前后补齐相邻月份的日子（灰的），最后一行补满，这样每一行的星期都对得上。 */
+
+.yan-cal .cal-nav {
+  margin: 14px 0 4px;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+.yan-cal .cal-title {
+  flex: 1;
+  text-align: center;
+  font-size: calc(18px * var(--fs-scale, 1));
+  letter-spacing: .04em;
+  margin: 0;
+  color: var(--ink);
+}
+.yan-cal .cal-sub {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 0 0 10px;
+  min-height: 44px;          /* 与那枚「回到这个月」齐平，免得下面格子跳一格 */
+}
+
+/* 月历格子：.yd 是本文件给「言笺的日历」这一族的前缀，
+   绕开 styles-v06 里给衣笺穿着日历写的 .cal-day.has::after 那颗固定圆点。 */
+.yan-cal .cal-day.yd {
+  min-height: 44px;
+  aspect-ratio: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  padding: 4px 0 5px;
+  font-variant-numeric: tabular-nums;
+}
+.yan-cal .cal-day.yd .cal-dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  height: 5px;
+}
+.yan-cal .cal-day.yd .cal-dots i {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--seal);
+  display: block;
+}
+/* 超过三件就写数字：四颗点在一片 42px 宽的格子里会连成一条线，看不出是四件 */
+.yan-cal .cal-day.yd .cal-dots b {
+  font-size: calc(9px * var(--fs-scale, 1));
+  font-weight: 500;
+  line-height: 1;
+  color: var(--seal);
+  font-variant-numeric: tabular-nums;
+}
+.yan-cal .cal-day.yd.has2 { background: var(--paper-2); }
+/* 今天：一枚印章红的细圈 + 一个加粗的日期数字。
+   **圈可以是印章红，数字不能**：印章红 #b54a3c 压在 --paper-2 上只有 4.14:1，
+   而「今天」那一格如果恰好也是「有事的那天」，它的底正是 --paper-2（上面的 .has2）。
+   4.14 < 4.5，那个数字读不出来——而那恰恰是用户最想看的那一格。
+   所以把两件事拆开：圈是非文本图形（WCAG 1.4.11 要 3:1，印章红对三张纸都 ≥4.14，够），
+   仍用 --seal；数字本身回 --ink（对三张纸 11:1 以上），靠加粗与那圈红表达「今天」。
+   靠伪元素 inset 而不是 border —— border 会把格子撑大两像素，七列一起撑就是整张月历错位。 */
+.yan-cal .cal-day.yd.today::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border-radius: 10px;
+  border: 1.5px solid var(--seal);
+  pointer-events: none;
+}
+.yan-cal .cal-day.yd.today { color: var(--ink); font-weight: 700; }
+.yan-cal .cal-day.yd.on { background: var(--ink); color: var(--paper); }
+.yan-cal .cal-day.yd.on .cal-dots i { background: var(--paper); }
+.yan-cal .cal-day.yd.on .cal-dots b { color: var(--paper); }
+.yan-cal .cal-day.yd.on.today::after { border-color: var(--paper); }
+.yan-cal .cal-day.yd.out { color: var(--ink-soft); }   /* 相邻月份那几天仍是按钮：1.43:1 → 5.46:1 */
+.yan-cal .cal-day.yd.out .cal-dots i { background: var(--ink-soft); }
+.yan-cal .cal-day.yd.out.today::after { display: none; }
+
+/* ==================== 今天 / 今晚 两个抽屉 ==================== */
+
+.slot-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ==================== 行上的铃铛 ====================
+   styles-v06 的 .bell 是 44×44 的圆钮，言笺这一屏一行的动作栏里已经有「挪 / 时间 / ×」
+   三枚，再塞一枚 44 宽的就挤到正文只剩两百来像素。所以这一屏的铃铛收成「小字 + 热区」。
+   热区以前写的是 34×34 —— 那是第 41 轮那条「不小于 32」的线，不是 WCAG 2.5.5 的 44。
+   这一行在 390 宽的纸上，动作栏是**独占一行右对齐**的（见 styles.css 的窄屏那一条），
+   四枚 44 宽合起来 176px，离纸边还有一半余量，所以直接抬到 44，版式不动。 */
+
+.check .bell {
+  background: none;
+  border: none;
+  font: inherit;
+  cursor: pointer;
+  color: var(--ink-soft);
+  font-size: calc(11px * var(--fs-scale, 1));
+  letter-spacing: .06em;
+  line-height: 1;
+  margin: -9px 0;
+  padding: 12px 8px;
+  border-radius: 10px;
+  /* 34 → 44：34 是第 41 轮那条「不小于 32」的旧线，不是 WCAG 2.5.5 的 44。
+     这一行的动作栏在 390 宽的纸上独占一行右对齐，四枚 44 宽共 176px，放得下。 */
+  min-height: 44px;
+  min-width: 44px;
+}
+/* 「已定」是两字，比「挪 / 时间」宽，窄屏上让这一格别再往外顶 */
+.check .bell[aria-pressed="true"] { color: var(--seal); font-weight: 600; }
+.check .bell:active { color: var(--seal); }
+
+/* 一行四枚动作：动作栏不换行、不被压扁。正文那格是 1fr，会自己缩。 */
+.check .acts { flex-wrap: nowrap; }
+
+/* ==================== 寄去别处 ==================== */
+
+.yan-jump {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+/* ==================== 小按钮：言笺这一版新增的「轻量动作」 ====================
+   月历翻页、抽屉收放、寄去别处、归档恢复都用它。和 .chip 的区别是：
+   .chip 是「筛一类东西」，.ybtn 是「做一件事」——字更小、边更淡，
+   但在纸上仍然是一枚按得动的签（44px 热区）。 */
+
+.ybtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: calc(12px * var(--fs-scale, 1));
+  line-height: 1.2;
+  padding: 0 12px;
+  min-height: 44px;
+  min-width: 44px;
+  cursor: pointer;
+  letter-spacing: .02em;
+}
+.ybtn:active { transform: scale(.97); color: var(--ink); }
+.ybtn.sm {
+  font-size: calc(11px * var(--fs-scale, 1));
+  padding: 0 10px;
+  min-height: 44px;
+  min-width: 44px;
+}
+.ybtn[aria-expanded="true"] { color: var(--ink); border-color: var(--ink-soft); }
+
+/* 月历里那两枚翻页：圆形，落在标题两侧 */
+.yan-cal .cal-nav .ybtn.sm {
+  border-radius: 50%;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  font-size: calc(18px * var(--fs-scale, 1));
+  line-height: 1;
+  flex: none;
+}
+
+/* ==================== 三把筛（按人 / 按状态 / 按时间） ====================
+   原生 <select>：安卓上点它起的是系统选择器，比自造的浮层稳、也能被读屏器念名字。
+   只把它捏成纸上一格的样子。 */
+
+.yan-filter-row {
+  margin-top: 2px;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.yan-sel {
+  font: inherit;
+  font-size: calc(12px * var(--fs-scale, 1));
+  color: var(--ink);
+  background: var(--cream);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0 10px;
+  min-height: 44px;
+  max-width: 46vw;
+  text-overflow: ellipsis;
+}
+.yan-sel:focus-visible { outline: 2px solid var(--seal); outline-offset: 2px; }
+
+/* ==================== 空行提示 / 分段标题 ==================== */
+
+.yan-empty-line {
+  margin: 2px 0 12px;
+  line-height: 1.7;
+}
+.rem-sec {
+  margin: 18px 0 8px;
+  letter-spacing: .06em;
+}
+
+/* ==================== 归档 ==================== */
+
+/* 归档里每一条都带一句「哪天勾掉、哪天收起来」：七天规则是看不见的，
+   把两个时间点写出来，用户才对得上为什么它不在这张笺上了。 */
+.check .move-chips .tiny { align-self: center; }
+
+/* ==================== 摘录本 ====================
+   言笺页内的一块折叠区。它长在言笺那张纸上（同一个 .sheet 的边距），
+   所以只给行自己的间距，不再套一层卡片。 */
+
+.digest-book { margin-top: 4px; }
+.digest-book > summary { letter-spacing: .08em; }
+.digest-stack { display: flex; flex-direction: column; gap: 14px; margin-top: 6px; }
+/* 一行摘录：日期与正文同排，那三枚动作**另起一行靠右**。
+   挤在同一排会把正文压成一条竖长的窄栏（实测 390 屏上 120px 宽，
+   一句话折成七行）——摘录本就是拿来读那句话的，读的地方不该最窄。 */
+.digest-row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 10px;
+  align-items: start;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.digest-row:last-child { border-bottom: none; padding-bottom: 0; }
+.dg-date {
+  font-size: calc(11px * var(--fs-scale, 1));
+  color: var(--ink-soft);
+  letter-spacing: .04em;
+  font-variant-numeric: tabular-nums;
+  padding-top: 4px;
+  white-space: nowrap;
+}
+.dg-main { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.dg-text { font-size: calc(14px * var(--fs-scale, 1)); line-height: 1.7; color: var(--ink); word-break: break-word; }
+.dg-acts {
+  grid-column: 1 / -1;
+  display: inline-flex;
+  gap: 2px;
+  justify-content: flex-end;
+}
+
+/* 摘录本里那一排小动作（心情 / 复制 / 删）：热区 44px，
+   摘录本里的字比言笺列表稀，不挤。 */
+.stem-chip {
+  background: none;
+  border: none;
+  font: inherit;
+  font-size: calc(11px * var(--fs-scale, 1));
+  letter-spacing: .04em;
+  color: var(--ink-soft);
+  cursor: pointer;
+  padding: 0 8px;
+  min-height: 44px;
+  min-width: 44px;
+  border-radius: 10px;
+  line-height: 1;
+}
+.stem-chip:active { color: var(--seal); }
+/* 「删」比别的动作窄一档，但**命中区仍要有 44**：38×44 的矩形在 2.5.5 里不合格，
+   而这一行是「删掉这条提醒」——最不该点空的一枚。抬到 44 之后这一排仍放得下
+   （三枚 44 + 一枚 44 = 176px，行宽 390）。 */
+.stem-chip.hdel { min-width: 44px; }
+.stem-chip[aria-expanded="true"] { color: var(--ink); font-weight: 600; }
+
+/* ==================== 提醒总览 ==================== */
+
+.rem-list { margin-top: 2px; }
+.rem-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px 8px 8px;
+  min-height: 56px;
+}
+.rem-row .grow { flex: 1 1 140px; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.rem-row .grow b { font-weight: 500; font-size: calc(14px * var(--fs-scale, 1)); line-height: 1.55; word-break: break-word; }
+/* 铃铛是这一行的状态灯（有没有定过、过没过点），不是按钮组里的第一枚：
+   给它一道右边的细线跟在后面的三枚动作分开，否则「铃 一次 办完了 删」读起来像四个同级标签。 */
+.rem-row .bell {
+  flex: none;
+  margin: 0;
+  border-right: 1px solid var(--line);
+  border-radius: 10px 0 0 10px;
+  padding-right: 10px;
+  margin-right: 2px;
+}
+/* 一枚铃 + 三枚小字动作：它们本来就有 44px 高的热区，纵向不需要再撑行。 */
+.rem-acts { display: inline-flex; flex-wrap: nowrap; gap: 0; align-items: center; flex: none; }
+.rem-row > .move-chips {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 4px 0 6px;
+}
+
+/* 快速添加面板：屏内的一块，不是浏览器 prompt。
+   顶上那道虚线是「这是新的一样东西，还没落进来」。 */
+.quick-add {
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  padding: 14px;
+  margin: 12px 0 4px;
+  background: var(--cream);
+}
+.quick-add input[type="text"] {
+  width: 100%;
+  font: inherit;
+  font-size: calc(15px * var(--fs-scale, 1));
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  min-height: 46px;
+}
+.quick-add .quick-when {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: calc(12px * var(--fs-scale, 1));
+  color: var(--ink-soft);
+  min-height: 44px;
+}
+.quick-add .quick-when input {
+  font: inherit;
+  font-size: calc(12px * var(--fs-scale, 1));
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 8px;
+  min-height: 44px;
+}
+
+/* 窄屏（≤380）：三把筛均分一行 */
+@media (max-width: 380px) {
+  .yan-sel { max-width: none; flex: 1 1 0; min-width: 0; }
+  .rem-row .rem-acts { flex-basis: 100%; justify-content: flex-start; }
+}
+
+/* 长列表的离屏渲染：言笺 200 条时整篇 44,358px 高，切过去要把 200 行全排一遍。
+   `content-visibility: auto` 让屏幕外的行先不排，滚到附近再算。
+   实测（Playwright headless，200 条）：切屏 37ms → 23ms，再往下就是渲染本身的成本了。
+   200 行全部正常显示（getBoundingClientRect 高 117px，与不限时的行一致）。
+
+   为什么敢用：这些行是 grid 的 .check，高度稳定；`contain-intrinsic-size` 给的
+   120px 是它的典型高度，估错了只会让滚动条长度在启动瞬间跳一下，不会让内容错位。
+   为什么只加在这一条列表上：全站加会把每一屏的首屏渲染都变成「按估算高度排」，
+   而其它屏都没有 200 行这个量级的问题。 */
+#yanOut > * { content-visibility: auto; contain-intrinsic-size: auto 120px; }

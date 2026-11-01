@@ -1,0 +1,490 @@
+/* 笺 · v0.6.0 扩展样式
+   ─────────────────────────────────────────────────────────────
+   styles.css 是「白天的纸」那套令牌与组件，这一份只做三件事：
+   1. **夜里的纸**：覆盖 :root 的色值（不改旧值、不改结构）
+   2. **新组件**：v0.6.0 新增的屏要用到的（统计格、热力图、徽章、日历、抽屉、分段、空章…）
+   3. **五栏目底栏**：从四枚变五枚之后的尺寸与图标位
+
+   规矩（与 styles.css 一致，违反会被 contrast / dead_controls 抓到）：
+   - 颜色一律从变量取，这里不写死色值
+   - 阴影只有 --lift 一种
+   - 淡出用颜色不用 opacity（历史踩过两次）
+   - 触摸目标 ≥ 44px（新控件；老的 .chip 34px 是历史遗留，不在本轮强改）
+   - 动效不超过 400ms，且 no-motion 下全部关掉
+*/
+
+/* ==================== 夜里的纸 ====================
+   不是「把纸变黑」，是「夜里的宣纸」：暖灰底、墨色字、印章红降饱和。
+   两个硬约束：
+   - 长图（card.js）永远是白天的纸：它是发给别人看的
+   - 原生状态栏图标跟着翻（theme.js 的 apply → paintNativeChrome） */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #1b1917;
+  --paper-2: #232019;
+  --ink: #e8e2d6;
+  --ink-soft: #a09889;
+  /* 占位符在夜里要更亮，不是更暗：夜纸 #1b1917 上原来那个写死的 #7a7062 只有 3.38:1，
+     而占位符在这里是「怎么称呼」「把菜单一行一道贴进来」这种真的要看懂的说明。
+     这张纸上最坏底色是 --cream #221f1b，5.25:1；比 --ink-soft 退一步，但仍读得清。 */
+  --ph: #a09889;
+  --line: #35302a;
+  --seal: #c97164;
+  --seal-2: #c2a35a;
+  --ok: #7fa98a;
+  --cream: #221f1b;
+  --lift: 0 1px 2px rgba(0, 0, 0, .3), 0 14px 28px -16px rgba(0, 0, 0, .6);
+  /* 压在照片上的角标：夜里也要有实底，否则白字压浅照片读不出 */
+  --cap-bg: rgba(20, 18, 16, .78);
+  /* 纸底的两种说法（body 与宽窗 #app 的两个渐变在用）。
+     白天那对值写在 styles.css 的 var() fallback 里；这里给出夜里的一对。
+     为什么必须给：只换 --paper 的话，卡片会变暗、纸还是米色，看着像两个 App 拼的。 */
+  --paper-wash: rgba(27, 25, 23, .96);
+  --grain: rgba(232, 226, 214, .02);
+  /* 生成长图时糊在屏幕上的那层薄纱：夜里同样是纸色，只是更淡 */
+  --paper-veil: rgba(27, 25, 23, .82);
+}
+:root[data-theme="light"] {
+  --cap-bg: rgba(42, 39, 35, .82);
+  --paper-wash: rgba(244, 239, 230, .92);
+  --grain: rgba(42, 39, 35, .015);
+  --paper-veil: rgba(244, 239, 230, .72);
+}
+
+/* 主题切换的过渡：只有背景与文字颜色过，不碰 transform（否则会和 .screen 的入场打架）。
+   no-motion 下立即切换。 */
+:root:not(.no-motion) body,
+:root:not(.no-motion) .card,
+:root:not(.no-motion) .sheet,
+:root:not(.no-motion) .nav {
+  transition: background-color .22s var(--ease-out), color .22s var(--ease-out),
+    border-color .22s var(--ease-out);
+}
+
+/* 字的三档：--fs-scale 与系统 fontScale 相乘（后者由原生 textZoom 施加） */
+:root[data-font="s"] { --fs-scale: .94; }
+:root[data-font="m"] { --fs-scale: 1; }
+:root[data-font="l"] { --fs-scale: 1.12; }
+:root[data-font="s"] body, :root[data-font="l"] body {
+  font-size: calc(16px * var(--fs-scale));
+}
+/* 正文以外的东西都按 em/rem 走，所以只改 body 就够；h1 用 clamp 里的 vw 部分会盖掉
+   缩放，所以这里再给标题一个乘数 */
+:root[data-font="l"] h1 { font-size: clamp(36px, 10.3vw, 46px); }
+
+/* 动效开关：系统「减少动态效果」或用户自己关，都落到 .no-motion */
+:root.no-motion *, :root.no-motion *::before, :root.no-motion *::after {
+  animation-duration: .001s !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: .001s !important;
+  scroll-behavior: auto !important;
+}
+
+/* 印章款式三档：经典（描边圆）/ 细线 / 实底。
+   母题不许换，只许换笔触——这是「同一支印章」的三种刻法。 */
+:root[data-seal="thin"] .seal-mark { border-width: 1px; }
+:root[data-seal="solid"] .seal-mark { background: var(--seal); color: var(--paper); border-color: var(--seal); }
+:root[data-seal="solid"] .seal-mark.lg { background: var(--seal); }
+:root[data-seal="solid"] .stamp { background: var(--seal); color: var(--paper); }
+
+/* ==================== 底栏：五枚 ====================
+   从「衣味言我的」四枚变成「衣味言谱册」五枚。字号收到 11px 才放得下，
+   但每一枚的触摸区仍 ≥44px（padding 撑起来，而不是 line-height）。 */
+.nav.nav5 { padding: 6px 2px calc(6px + var(--sab)); }
+.nav.nav5 button {
+  min-width: 0; flex: 1; font-size: calc(11px * var(--fs-scale, 1)); letter-spacing: .06em;
+  padding: 6px 2px; min-height: 46px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+}
+.nav5 button .nav-ico {
+  font-family: "Songti SC", "Noto Serif SC", "STSong", "SimSun", serif;
+  font-size: calc(15px * var(--fs-scale, 1)); line-height: 1;
+  width: 20px; height: 20px; display: grid; place-items: center;
+  border-radius: 50%; transition: color .18s var(--ease-out);
+}
+/* 这里原来是 `opacity: .62`（未选中时把图标压淡），实测对比度只有 2.47:1——不合格。
+   淡出本该用颜色不用透明度：opacity 会把已经算好的对比度再乘一次，而 --ink-soft 本身
+   压在纸色上正好是 5.09:1，看着的「淡」全靠这个 5.09 的灰来给。
+   所以未选中就用继承来的 --ink-soft，选中由 .nav button.on 的 --ink 接手，图标不用另外管。 */
+.nav5 button.on .nav-ico { color: var(--ink); }
+.nav5 button.on::after { margin-top: 1px; }
+/* 有「今日待办 / 到期提醒」时，那一枚印点换成实心，并给一个数字点。
+   ── 这颗点以前是拿 margin 硬挪的：position:absolute 却不给 top/left，
+   于是它落在「静态位置」上，再被 margin: -14px 0 0 14px 拽回来。
+   静态位置在 flex column 里排在「言笺」那行字**之后**，-14px 只能拽到大半程——
+   实测这颗 6px 的点落在 (276.2, 797.5)，而 20px 的印字框是 (262.2, 787.5)…(282.2, 807.5)：
+   它正好压在「言」字的右下角上（截图里那枚红点糊住了言字最后一横的右端）。
+   三条底栏签都有徽标位，压住的那个字恰恰是「言笺」——最需要一眼认出来的那一枚。
+   改法：把按钮变成定位上下文，点按**印字框右沿之外**定位：
+   横向 right: calc(50% - 20px) → 点整个落在印字框右侧 4px 的空白里；
+   纵向 top: 7px → 骑在印字框上沿（787.5）附近，像一枚盖在页角上的印。
+   这样它与那个字**横向完全不重叠**，换到哪一枚签上都不会压到笔画。 */
+.nav5 button { position: relative; }
+.nav5 button .nav-dot {
+  position: absolute; top: 7px; right: calc(50% - 20px);
+  width: 6px; height: 6px;
+  border-radius: 50%; background: var(--seal);
+}
+
+/* ==================== 通用新件 ==================== */
+
+/* 分段控件：一排签里只能选一个（比 chips 更紧凑，用在视图切换上） */
+.seg {
+  display: flex; gap: 0; border: 1px solid var(--line); border-radius: 999px;
+  overflow: hidden; background: var(--cream);
+}
+.seg button {
+  flex: 1 1 0; min-width: 0;
+  background: none; border: none; font: inherit; font-size: calc(12px * var(--fs-scale, 1));
+  color: var(--ink-soft); padding: 10px 4px; min-height: 44px;
+  letter-spacing: .04em; cursor: pointer; position: relative;
+  /* 分段里的选项是短词（跟随系统 / 不要等短句换行）：单行 + 末尾省略。
+     以前没写这两条，「跟随系统（现在亮）」在 390 宽里折成两行，把整条撑高成一堵墙。 */
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { color: var(--paper); background: var(--ink); font-weight: 600; }
+/* 三段以上时字号再收一档，让中文选项仍是一行 */
+.seg:has(button:nth-child(3)) button { font-size: calc(11.5px * var(--fs-scale, 1)); letter-spacing: 0; padding: 10px 2px; }
+
+/* 统计格：一枚大数字 + 一行小字。统计屏、笺谱、年度总结都用它。 */
+.stat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.stat-grid.three { grid-template-columns: repeat(3, 1fr); }
+.stat {
+  background: var(--cream); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 14px 12px; text-align: left; min-height: 84px;
+  display: flex; flex-direction: column; justify-content: space-between;
+}
+.stat b {
+  font-family: "Songti SC", "Noto Serif SC", "STSong", "SimSun", serif;
+  font-size: calc(26px * var(--fs-scale, 1)); font-weight: 500; line-height: 1.1; letter-spacing: .01em;
+  font-variant-numeric: tabular-nums;
+}
+.stat b small { font-size: calc(12px * var(--fs-scale, 1)); color: var(--ink-soft); margin-left: 3px; font-family: inherit; }
+.stat span { font-size: calc(11px * var(--fs-scale, 1)); color: var(--ink-soft); letter-spacing: .06em; }
+/* 数字正在长的感觉：数字用 tabular-nums 防跳动（.stat b 已加） */
+
+/* 空章 / 已解锁章：收藏册的格子。未解锁是「没蘸墨的印」——描边虚线 + 极淡。 */
+.badge-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.badge {
+  aspect-ratio: 1; border-radius: 14px; display: grid; place-items: center;
+  background: var(--cream); border: 1px solid var(--line); cursor: pointer;
+  position: relative; padding: 6px; text-align: center;
+}
+.badge .bg-mark {
+  font-family: "Songti SC", "Noto Serif SC", "STSong", "SimSun", serif;
+  font-size: calc(20px * var(--fs-scale, 1)); line-height: 1; color: var(--seal);
+  width: 38px; height: 38px; display: grid; place-items: center;
+  border: 1.5px solid var(--seal); border-radius: 50%; transform: rotate(-8deg);
+}
+.badge .bg-name { font-size: calc(10px * var(--fs-scale, 1)); color: var(--ink-soft); letter-spacing: .04em; margin-top: 6px; }
+/* 未解锁的章：虚线描边 + 「还差 N 张」那句话。以前这两处都用 var(--line)（1.43:1 白天 /
+   1.26:1 夜里）——「还差 8 件」是这个屏上唯一告诉你**怎么解锁**的一行字，却几乎看不见。
+   「没蘸墨」的观感留给虚线描边与不填色，字改走 --ink-soft（5.46:1）。形状差异仍在，
+   所以解锁/未解锁不只靠颜色区分（WCAG 1.4.1）。 */
+.badge.locked .bg-mark { color: var(--ink-soft); border-color: var(--line); border-style: dashed; }
+.badge.locked .bg-name { color: var(--ink-soft); }
+.badge.unlocked::after {
+  content: ""; position: absolute; inset: 0; border-radius: 14px;
+  border: 1px solid var(--seal); opacity: .28; pointer-events: none;
+}
+
+/* 热力图：五档深浅 + 今天带边框（flomo 那套被验证过的视觉）。
+   一格 = 一天，行 = 周，列 = 星期。 */
+.heat { display: flex; gap: 3px; overflow-x: auto; padding: 2px 0 4px; }
+.heat-week { display: flex; flex-direction: column; gap: 3px; }
+.heat-cell {
+  width: 11px; height: 11px; border-radius: 2px; flex: none;
+  background: var(--paper-2); border: 1px solid transparent;
+}
+.heat-cell.l1 { background: color-mix(in srgb, var(--seal) 22%, var(--paper-2)); }
+.heat-cell.l2 { background: color-mix(in srgb, var(--seal) 42%, var(--paper-2)); }
+.heat-cell.l3 { background: color-mix(in srgb, var(--seal) 64%, var(--paper-2)); }
+.heat-cell.l4 { background: color-mix(in srgb, var(--seal) 88%, var(--paper-2)); }
+.heat-cell.today { border-color: var(--ink); }
+.heat-cell.future { opacity: .28; }
+.heat-legend { display: flex; align-items: center; gap: 6px; font-size: calc(11px * var(--fs-scale, 1)); color: var(--ink-soft); }
+
+/* 月历：月网格。用在言笺日历视图与穿着日历上。 */
+.cal-head { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 6px; }
+.cal-head span { text-align: center; font-size: calc(11px * var(--fs-scale, 1)); color: var(--ink-soft); }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.cal-day {
+  aspect-ratio: 1; border-radius: 10px; border: 1px solid transparent;
+  background: none; font: inherit; font-size: calc(12px * var(--fs-scale, 1)); color: var(--ink);
+  display: grid; place-items: center; position: relative; cursor: pointer; min-height: 38px;
+}
+.cal-day.out { color: var(--ink-soft); }             /* 相邻月份那几天：仍是可点的按钮，字要读得出（1.43:1 → 5.46:1） */
+.cal-day.has { background: var(--paper-2); }
+.cal-day.has::after {
+  content: ""; position: absolute; bottom: 4px; width: 4px; height: 4px;
+  border-radius: 50%; background: var(--seal);
+}
+.cal-day.on { border-color: var(--ink); }
+.cal-day.today { font-weight: 700; }
+.cal-day.today::before {
+  content: ""; position: absolute; inset: 2px; border-radius: 8px;
+  border: 1px dashed var(--line);
+}
+
+/* 抽屉 / 展开区：比 <details> 好看一点，但语义仍是 details（键盘与读屏都认） */
+details.drawer { border: 1px solid var(--line); border-radius: var(--radius); background: var(--cream); }
+details.drawer > summary {
+  list-style: none; cursor: pointer; padding: 13px 14px; min-height: 46px;
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: calc(13px * var(--fs-scale, 1)); letter-spacing: .04em;
+}
+details.drawer > summary::-webkit-details-marker { display: none; }
+details.drawer > summary::after { content: "＋"; color: var(--ink-soft); font-size: calc(14px * var(--fs-scale, 1)); }
+details.drawer[open] > summary::after { content: "－"; }
+details.drawer > .drawer-body { padding: 0 14px 14px; }
+
+/* 列表行：设置页、清单页统一用它。整行可点，右侧一个 ›。 */
+.list { border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--cream); }
+.list > * + * { border-top: 1px solid var(--line); }
+.rowbtn {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  background: none; border: none; font: inherit; color: var(--ink);
+  padding: 13px 14px; min-height: 48px; text-align: left; cursor: pointer;
+}
+.rowbtn .grow { flex: 1; min-width: 0; }
+/* b 与 sub 必须各占一行：inline 的 <b> 与 <span> 会挤成「章已攒 0 枚」这样一句断不开的话。
+   （实测截图里就是这样——标题与说明粘成一行，右边那个 › 还在，看着像文案写错了。） */
+.rowbtn .grow > b { display: block; font-weight: 500; font-size: calc(14px * var(--fs-scale, 1)); line-height: 1.45; }
+.rowbtn .sub { display: block; font-size: calc(11px * var(--fs-scale, 1)); color: var(--ink-soft); line-height: 1.5; }
+.rowbtn .val { font-size: calc(12px * var(--fs-scale, 1)); color: var(--ink-soft); }
+.rowbtn::after { content: "›"; color: var(--ink-soft); font-size: calc(16px * var(--fs-scale, 1)); margin-left: 4px; }
+.rowbtn.plain::after { content: ""; }
+/* 纯说明行（不是按钮）不要 hover 手感，也不要指针 */
+.rowbtn.plain { cursor: default; }
+
+/* 进度条：单次成本、在穿率、完成率 */
+.meter { height: 6px; border-radius: 3px; background: var(--paper-2); overflow: hidden; }
+.meter > i { display: block; height: 100%; background: var(--seal); border-radius: 3px; }
+
+/* 徽记：一排小字标签（场合/标签/季节） */
+.tagrow { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag {
+  font-size: calc(11px * var(--fs-scale, 1)); padding: 3px 8px; border-radius: 999px;
+  background: var(--paper-2); color: var(--ink-soft); letter-spacing: .04em;
+}
+
+/* 空态：一枚没蘸墨的印 + 一句话。全仓统一，不要各屏各写一套。
+   那颗印里的字（找 / 衣 / 味 / 铃 / 买…）以前是 var(--line)：压在这张纸上 1.33:1（白天）
+   / 1.34:1（夜里）。30px 的字按 WCAG 大字档要 3:1，实测连一半都不到。
+   「没蘸墨」交给虚线描边与不填色去说，字本身要读得出来 —— 它是这一屏唯一的那枚印。 */
+.empty { color: var(--ink-soft); font-size: calc(13px * var(--fs-scale, 1)); line-height: 1.7; text-align: center; padding: 28px 10px; }
+.empty-印 {
+  font-family: "Songti SC", "Noto Serif SC", "STSong", "SimSun", serif;
+  font-size: calc(30px * var(--fs-scale, 1)); color: var(--ink-soft); border: 1.5px dashed var(--line);
+  width: 62px; height: 62px; border-radius: 50%; display: grid; place-items: center;
+  margin: 0 auto 14px; transform: rotate(-10deg);
+}
+
+/* 今日一笺：一张纸，三件事。硬限制：永远只显示三件。 */
+.today-sheet { padding: 6px 18px; }
+.today-row {
+  display: flex; gap: 12px; align-items: flex-start; padding: 13px 0;
+  border-top: 1px solid var(--line); text-align: left; width: 100%;
+  background: none; border-left: none; border-right: none; border-bottom: none;
+  font: inherit; color: var(--ink); cursor: pointer; min-height: 56px;
+}
+.today-row:first-of-type { border-top: none; }
+.today-row .tr-no {
+  font-family: "Songti SC", "Noto Serif SC", "STSong", "SimSun", serif;
+  color: var(--seal); font-size: calc(13px * var(--fs-scale, 1)); width: 18px; flex: none; padding-top: 2px;
+}
+.today-row .tr-main { flex: 1; min-width: 0; }
+.today-row .tr-main b { font-weight: 500; display: block; font-size: calc(14px * var(--fs-scale, 1)); line-height: 1.5; }
+.today-row .tr-main span { font-size: calc(11px * var(--fs-scale, 1)); color: var(--ink-soft); }
+
+/* 连续天数那一枚章 */
+.streak { display: inline-flex; align-items: center; gap: 8px; }
+/* 章里那个数字与「天」字是**纸上的字**，不是装饰，按 WCAG 1.4.3 走 4.5:1。
+   它一直是 var(--seal)，而 --seal 压 --paper 白天只有 4.57:1、压 --paper-2 更低到
+   **4.14:1** —— 这两档都在 4.5 以下。当前能过是因为它落在这张纸的 --paper 上
+   （4.57，只富余 0.07），一旦这枚章挪到任何 --paper-2 的底上（卡片、柜格、
+   统计格里都可能），数字立刻掉到 4.14:1。9px 的「天」更是本来就该按正文档算。
+   印章红要留给描边与印点（它们靠 3:1 的「非文本对比度」那条），
+   章里的字改成 --ink：压 --paper 12.98:1、压 --paper-2 11.75:1，主题一换自动跟着走。 */
+.streak .sk-mark {
+  font-family: "Songti SC", "Noto Serif SC", "STSong", "SimSun", serif;
+  border: 1.5px solid var(--seal); color: var(--ink); border-radius: 50%;
+  width: 44px; height: 44px; display: grid; place-items: center; transform: rotate(-6deg);
+  line-height: 1;
+}
+.streak .sk-mark b { font-size: calc(17px * var(--fs-scale, 1)); font-weight: 500; }
+.streak .sk-mark i { font-size: calc(9px * var(--fs-scale, 1)); font-style: normal; display: block; }
+
+/* 转盘 / 抽签：今晚吃什么的动画舞台 */
+.wheel-stage { position: relative; height: 190px; overflow: hidden; border-radius: var(--radius); }
+.wheel-track { display: flex; flex-direction: column; align-items: center; will-change: transform; }
+.wheel-track > span {
+  height: 54px; display: grid; place-items: center;
+  font-family: "Songti SC", "Noto Serif SC", "STSong", "SimSun", serif;
+  font-size: calc(22px * var(--fs-scale, 1)); color: var(--ink-soft); letter-spacing: .06em;
+}
+:root:not(.no-motion) .wheel-track.spin { animation: wheelsp 1.15s cubic-bezier(.12, .72, .06, 1) both; }
+@keyframes wheelsp { from { transform: translateY(0); } to { transform: translateY(var(--wheel-dy, -540px)); } }
+.wheel-pick {
+  position: absolute; inset: 68px 0; border-top: 1px solid var(--seal); border-bottom: 1px solid var(--seal);
+  display: grid; place-items: center; pointer-events: none;
+}
+
+/* 年度总结 / 菜单长图的预览与入口 */
+.gen-card {
+  border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden;
+  background: var(--cream); text-align: left;
+}
+.gen-card .gc-img { display: block; width: 100%; aspect-ratio: 9 / 16; object-fit: cover; background: var(--paper-2); }
+.gen-card .gc-body { padding: 12px 14px; }
+
+/* 「一张纸」的详情页：单品 / 菜谱 / 提醒的共用骨架 */
+.detail-head { display: flex; gap: 14px; align-items: flex-start; }
+.detail-swatch {
+  width: 72px; height: 72px; border-radius: 14px; flex: none;
+  border: 1px solid var(--line); background: var(--paper-2);
+  display: grid; place-items: center; overflow: hidden;
+}
+.detail-swatch img { width: 100%; height: 100%; object-fit: cover; }
+.detail-head .dh-main { flex: 1; min-width: 0; }
+.detail-head h2 {
+  font-family: "Songti SC", "Noto Serif SC", "STSong", "SimSun", serif;
+  font-weight: 500; font-size: calc(22px * var(--fs-scale, 1)); line-height: 1.3; margin: 0 0 4px;
+}
+
+/* 表单行：设置页与档案页 */
+.field { display: block; margin: 0 0 14px; }
+.field > span { display: block; font-size: calc(11px * var(--fs-scale, 1)); color: var(--ink-soft); letter-spacing: .1em; margin-bottom: 6px; }
+.field input, .field textarea, .field select {
+  width: 100%; font: inherit; font-size: calc(14px * var(--fs-scale, 1)); color: var(--ink);
+  background: var(--cream); border: 1px solid var(--line); border-radius: 12px;
+  padding: 12px 14px; min-height: 46px;
+}
+.field textarea { min-height: 92px; resize: vertical; line-height: 1.6; }
+.field .hint { font-size: calc(11px * var(--fs-scale, 1)); color: var(--ink-soft); margin-top: 5px; }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+/* ==================== 开关：自己画，不用 UA 的复选框 ====================
+   为什么不用 <input type=checkbox> 直接露出来：安卓 WebView / Chrome 的默认复选框是
+   **系统蓝**（截图里就是两颗饱和蓝方块），压在纸上像一块别家的 UI。而这个 App 只有一个
+   强调色（印章红）。所以外观全部自己画，但**语义仍是原生 checkbox**——
+   键盘 Space、读屏器「已选中/未选中」、label 点击、表单可访问性全都保留。
+   做法是经典的 appearance:none + ::after 勾。
+
+   尺寸：可见的是 46×28 的胶囊，但**命中区是整行**——它外面包着 <label class="rowbtn">，
+   点那一行任何地方都会切换（e2e 第 41 节量触摸目标时用的就是这把尺：
+   「表单控件在 label 里，点整行都算」）。所以这里不需要为了 2.5.5 把胶囊撑大。 */
+input[type="checkbox"].switch,
+.switch input[type="checkbox"] {
+  appearance: none; -webkit-appearance: none;
+  width: 46px; height: 28px; min-height: 0; padding: 0; margin: 0;
+  border-radius: 999px; border: 1px solid var(--line);
+  background: var(--paper-2); position: relative; cursor: pointer; flex: none;
+  transition: background-color .16s var(--ease-out), border-color .16s var(--ease-out);
+}
+input[type="checkbox"].switch::after,
+.switch input[type="checkbox"]::after {
+  content: ""; position: absolute; top: 3px; left: 3px;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--cream); box-shadow: 0 1px 2px rgba(42, 39, 35, .18);
+  transition: transform .16s var(--ease-out);
+}
+input[type="checkbox"].switch:checked,
+.switch input[type="checkbox"]:checked {
+  background: var(--seal); border-color: var(--seal);
+}
+input[type="checkbox"].switch:checked::after,
+.switch input[type="checkbox"]:checked::after { transform: translateX(18px); }
+/* 复选框（清单里的勾）也是同一套：小方框 + 印章红的勾。
+   22 → 24：WCAG 2.5.8 的下限是 24×24，而这一格量出来一直是 22 高（.check 那一列的
+   --ck-col 就是 24，两边本来对不上）。整行 label 让它交互上够得着，但看得见的那一格也得够。 */
+input[type="checkbox"]:not(.switch) {
+  appearance: none; -webkit-appearance: none;
+  width: 24px; height: 24px; min-height: 0; flex: none;
+  border: 1px solid var(--line); border-radius: 6px; background: var(--cream);
+  position: relative; cursor: pointer; margin: 0;
+}
+input[type="checkbox"]:not(.switch):checked {
+  background: var(--seal); border-color: var(--seal);
+}
+input[type="checkbox"]:not(.switch):checked::after {
+  content: ""; position: absolute; left: 6px; top: 3px;
+  width: 7px; height: 12px; border: solid var(--paper);
+  border-width: 0 2px 2px 0; transform: rotate(42deg);
+}
+
+/* 列表里的可编辑数值（价格、次数、天数）：一枚小输入，不加框线 */
+.inline-num {
+  font: inherit; font-size: calc(14px * var(--fs-scale, 1)); text-align: right; width: 84px;
+  background: none; border: none; border-bottom: 1px solid var(--line);
+  color: var(--ink); padding: 5px 2px; min-height: 34px;
+}
+
+/* 页签：一屏里分几块（衣笺：柜子 / 搭配 / 愿望；味笺：排桌 / 菜谱 / 买菜） */
+.tabs {
+  display: flex; gap: 18px; border-bottom: 1px solid var(--line);
+  overflow-x: auto; scrollbar-width: none; margin: 0 0 16px;
+}
+.tabs::-webkit-scrollbar { display: none; }
+.tabs button {
+  background: none; border: none; font: inherit; font-size: calc(13px * var(--fs-scale, 1));
+  color: var(--ink-soft); padding: 12px 0 10px; letter-spacing: .06em;
+  position: relative; white-space: nowrap; cursor: pointer;
+  /* 高度一直是 44，宽度不是：「过笺」两个字只有 27.6px 宽，而 2.5.5 算的是**外接矩形**。
+     给一个 44 的下限就够（这一排在 390 的纸上仍有 116px 余量，不会挤出纸边）。 */
+  min-height: 44px; min-width: 44px;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.tabs button[aria-selected="true"] { color: var(--ink); font-weight: 600; }
+.tabs button[aria-selected="true"]::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--seal);
+}
+.tabs button .cnt { font-size: calc(10px * var(--fs-scale, 1)); color: var(--ink-soft); margin-left: 3px; }
+
+/* 搜索历史签（全局搜索用） */
+.hist-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* 打印/长图预览的浮层：一屏看一张，点背景关 */
+.sheet-view {
+  position: fixed; inset: 0; z-index: 60; background: rgba(20, 18, 16, .82);
+  display: grid; place-items: center; padding: 20px;
+}
+.sheet-view img { max-width: 100%; max-height: 100%; border-radius: 10px; box-shadow: var(--lift); }
+.sheet-view .close {
+  position: absolute; top: calc(14px + var(--sat)); right: 16px;
+  background: rgba(250, 247, 241, .14); color: #f4efe6; border: 1px solid rgba(250, 247, 241, .3);
+  border-radius: 999px; padding: 8px 14px; font: inherit; font-size: calc(12px * var(--fs-scale, 1)); cursor: pointer; min-height: 40px;
+}
+
+/* 浮动主按钮：一屏只有一个主行动时（今日/菜谱详情），贴在右下 */
+.fab {
+  position: fixed; right: max(18px, calc((100vw - 480px) / 2 + 18px));
+  bottom: calc(84px + var(--sab)); z-index: 25;
+  width: 54px; height: 54px; border-radius: 50%;
+  background: var(--ink); color: var(--paper); border: none;
+  font-family: "Songti SC", "Noto Serif SC", "STSong", "SimSun", serif;
+  font-size: calc(19px * var(--fs-scale, 1)); display: grid; place-items: center; cursor: pointer;
+  box-shadow: var(--lift); min-height: 54px;
+}
+.fab:active { transform: scale(.96); }
+
+/* 通知/提醒的铃铛：状态三档（未设 / 已设 / 已过期） */
+.bell {
+  background: none; border: none; font: inherit; color: var(--ink-soft);
+  padding: 8px; min-width: 44px; min-height: 44px; cursor: pointer;
+  display: inline-grid; place-items: center; font-size: calc(13px * var(--fs-scale, 1)); border-radius: 10px;
+}
+.bell.on { color: var(--seal); }
+/* 「已过期」那一档：以前是 var(--line)（1.43:1）。删除线说的是「过了点」，颜色不该把字一起抹掉。 */
+.bell.past { color: var(--ink-soft); text-decoration: line-through; }
+
+/* 今日一笺的那一行「往年今日」 */
+.past-year { font-size: calc(12px * var(--fs-scale, 1)); color: var(--ink-soft); line-height: 1.7; }
+.past-year b { color: var(--ink); font-weight: 500; }
+
+/* 宽窗（≥900px）：styles.css 已经把中间那一栏立成一张纸；
+   新屏在宽窗下同样只要中间一栏，不需要额外规则——这里只补底栏对齐 */
+@media (min-width: 900px) {
+  .fab { right: calc(50vw - 240px + 18px); }
+}

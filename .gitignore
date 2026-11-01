@@ -1,0 +1,62 @@
+__pycache__/
+*.pyc
+*.log
+.DS_Store
+Thumbs.db
+
+# ---- Capacitor / Node 打包产物 ----
+node_modules/
+www/
+
+# Android：源码进版本库，构建产物与机器相关文件不进
+android/.gradle/
+android/build/
+android/app/build/
+android/capacitor-cordova-android-plugins/build/
+android/local.properties
+android/.idea/
+android/app/src/main/assets/public/
+
+# 正式签名 keystore 不进版本库（务必备份，丢了无法更新应用）
+android/app/jian-release.keystore
+
+# @capacitor/assets 中间产物
+assets/.tmp/
+
+# 测试生成物
+test/screens/
+test/shots-device/
+test/shots-review/
+test/shots-long/
+test/_cases.json
+test/_cases_tmp.json
+test/.gate.lock
+
+# 临时探针与一次性备份。0.6.0 收尾时真的混进过一个 `today.js.lanebak`
+# （某个 lane 手改前的备份），它跟着提交进了版本库：build-www 的白名单不会带上它，
+# 但它从此躺在仓库里，下一个读代码的人会以为那是源码。这两个形状不许再进库。
+test/_probe_*.py
+test/_qa_*.py
+test/_a11y_*.py
+test/_visual_*.py
+test/_recon*.json
+test/_slice_*.py
+*.lanebak
+*.orig
+
+# impeccable 插件的工作目录与审阅截图（16MB 生成物，test/capture_review.py 随时能重拍）
+.impeccable/
+
+# 模型密钥清单默认在 ~/.jian/（仓库外）。这一条是第二层：万一有人把它放进了仓库树，
+# 也别跟着提交上去（网关那边还有一道 deny 挡着它被下载）。
+llm_providers.json
+providers.json
+secrets.json
+*.pem
+
+# 审计探针的中间产物（test/_audit/，跑完即弃）
+test/_audit/inputs.json
+test/_audit/js_out.json
+test/_audit/py_out.json
+test/shots-review/
+test/_before/

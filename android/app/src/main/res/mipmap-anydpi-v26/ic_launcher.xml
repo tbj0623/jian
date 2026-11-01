@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background"/>
+    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
+    <!-- 安卓 13+ 的主题图标：系统按壁纸配色重绘这一层，只认 alpha。
+         没有它，用户在「主题图标」下看到的是一坨系统自己从彩色图标里抠出来的灰影。 -->
+    <monochrome android:drawable="@mipmap/ic_launcher_monochrome"/>
+</adaptive-icon>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 启动画面：整张纸 + 居中一枚印。
+
+     这里以前是 @capacitor/assets 铺出来的一张 2732×2732 整屏位图，
+     11 个密度/横竖屏目录各存一份 = 2.9MB 资源，解码出来是 29MB 位图——
+     低端机启动就是黑屏一下，而它只画了一枚印章。
+     层叠图把这件事说清楚了：底色是色值，图案是一张 108dp 的小图，居中不拉伸。 -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/splash_background" />
+    <item
+        android:drawable="@drawable/splash_icon"
+        android:gravity="center" />
+</layer-list>

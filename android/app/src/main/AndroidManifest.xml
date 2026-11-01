@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- 隐私政策写着「你记录的一切只保存在你自己设备的私有存储里，卸载应用即随之删除」。
+         allowBackup=true（且不定义 dataExtractionRules）时系统会把整份应用数据——贴进来的
+         聊天记录、柜子里的照片、笺点余额——纳入 Google 云备份与设备迁移，卸载重装还会回来，
+         那句话就成了假话。应用本来就有「册 → 导出备份 / 导入备份」这条用户自己动手的路，
+         所以刻意关掉系统自动备份：拿自动恢复换三句陈述同时为真。
+         改这一行要连同 docs/上架/商店材料.md 的隐私政策一起看，test/backup_claim.py 会拦住只改一边的。 -->
+    <application
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:resizeableActivity="false"
+        android:enableOnBackInvokedCallback="true"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:theme="@style/AppTheme">
+
+        <!-- 竖屏是刻意的，不是没做：横屏实测 WebView 仍按竖屏尺寸排版，
+             左边一条空纸、右边全黑（把 screenOrientation 去掉试出来的）。
+             「笺」是一张竖着的纸，styles.css 宽窗那节的原话是「不做假平板」。
+             配合上面的 resizeableActivity=false，上架时在 Play Console 提交大屏/方向豁免。 -->
+        <activity
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
+            android:name=".MainActivity"
+            android:label="@string/title_activity_main"
+            android:screenOrientation="portrait"
+            android:theme="@style/AppTheme.NoActionBarLaunch"
+            android:launchMode="singleTask"
+            android:exported="true">
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- 桌面长按的快捷方式递过来 jian://screen/<哪一笺>。
+                 自定义 scheme 而不是 App Links：后者要在 assets/.well-known 挂域名指纹，
+                 而这个 App 没有自己的网站。singleTask（上面已经写着）保证热启动时
+                 地址是递给正在跑的那张纸（appUrlOpen 事件），不是重新起一个 WebView 再走一遍开机。 -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="jian" android:host="screen" />
+            </intent-filter>
+
+            <!-- 从别的 App「分享 → 笺」接收一段文字（ACTION_SEND + text/plain）。
+                 只收 text/plain：图片、文件、多个附件一律不接——这个 App 不处理图片分享，
+                 而声明 */* 会让它在每一个分享面板里出现，点进来却什么都不做。
+                 singleTask 意味着热启动走的是 onNewIntent（MainActivity 里成对实现了），
+                 只写 onCreate 的话「App 已在后台时分享进来」会静默丢内容，这是这条链路最容易漏的一格。 -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
+
+        </activity>
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths"></meta-data>
+        </provider>
+    </application>
+
+    <!-- Permissions -->
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- 到点提醒要的 POST_NOTIFICATIONS（安卓 13+ 的运行时权限）**不在这里重复声明**：
+         它由 @capacitor/local-notifications 的清单合并进来，和 VIBRATE 是同一个惯例
+         ——插件带入的权限只在商店材料与隐私政策里点名，不在源清单再写一遍。
+         这里记一笔是为了让「合并之后多了什么」在仓库里可查，而不是等上架时才发现。 -->
+
+    <!-- @capacitor/local-notifications 自己的清单会带四条权限进来，其中这条**刻意摘掉**：
+         SCHEDULE_EXACT_ALARM 在 Play 上属于受限权限，要单独填声明表，而笺的提醒只承诺
+         「大约这个点」——Doze 下本来就会被推迟。插件检测到没有这条权限会自动退回
+         setAndAllowWhileIdle（非精确），行为正是我们要的。
+         摘的方法是 tools:node="remove"：直接写一条同名 uses-permission 是加不出效果的，
+         合并器只会合并属性、不会取消依赖里那条声明。 -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" tools:node="remove" />
+
+    <!-- 相机是可选能力：没有相机的设备也该装得上（拍照只是入口之一，相册仍然能用） -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+
+    <!-- 安卓 11+ 的包可见性。不声明这段，resolveActivity() 对相机应用一律返回 null，
+         Capacitor 就记一条「Media capture intent could not be launched」然后退回相册选择器——
+         实测在装了 com.android.camera2 的模拟器上也是如此，也就是说「过笺 · 拍照」永远不会真的拍照。
+         这不是模拟器的锅，是清单缺声明。 -->
+    <queries>
+        <intent>
+            <action android:name="android.media.action.IMAGE_CAPTURE" />
+        </intent>
+        <intent>
+            <action android:name="android.media.action.VIDEO_CAPTURE" />
+        </intent>
+    </queries>
+</manifest>

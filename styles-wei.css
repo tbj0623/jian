@@ -1,0 +1,285 @@
+/* 笺 · 味笺的样式（菜谱库 / 买菜清单 / 一周菜单 / 转盘 / 常一起吃饭的人）
+   ─────────────────────────────────────────────────────────────
+   这一份只补「味笺独有」的形状，共享件（.card / .list / .chip / .seg / .stat）
+   都还在 styles.css 与 styles-v06.css 里，不在这里重写。
+
+   规矩（与 styles.css 一致，违反会被 contrast / dead_controls 抓到）：
+   - 颜色一律从变量取（--paper / --cream / --ink / --ink-soft / --line / --seal / --ok）
+   - 阴影只有 --lift 一种；圆角只有 --radius（小格用它的比例值，不另造一套圆角语言）
+   - 触摸目标 ≥ 44px（这一屏的主力是「点一张卡」，手指比指针粗）
+   - 动效不超过 400ms，且 no-motion 下全部关掉
+   - 深色纸不是「把纸变黑」：所有色值都从变量走，夜纸自动跟着变
+*/
+
+/* ==================== 菜谱库：分组 + 卡片网格 ====================
+   63 道菜不能排成一列长表——那是一座仓库的进出货单，不是一座可以逛的库。
+   分组头 + 三列卡片：一屏（390×844）扫得到六到九道，且一眼看得出荤素汤饭各有多少。 */
+
+.cook-sum {
+  border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--cream); padding: 12px 14px; margin: 4px 0 14px;
+}
+.cook-sum-line { font-size: calc(15px * var(--fs-scale, 1)); margin: 0 0 4px; }
+.cook-sum-line b { font-size: calc(24px * var(--fs-scale, 1)); font-weight: 500; color: var(--seal); margin-right: 2px; }
+
+.dish-group { margin: 0 0 16px; }
+/* 分组头是一整枚按钮（点它折叠），所以整条都要能按：min-height 48，横向铺满 */
+.dish-group-head {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  background: none; border: none; border-bottom: 1px solid var(--line);
+  font: inherit; color: var(--ink); text-align: left; cursor: pointer;
+  padding: 8px 2px 9px; min-height: 48px;
+}
+.dish-group-head .dgh-mark {
+  flex: none; width: 26px; height: 26px; border-radius: 50%;
+  border: 1.5px solid var(--seal); color: var(--seal);
+  display: grid; place-items: center; font-size: calc(13px * var(--fs-scale, 1)); line-height: 1;
+  transform: rotate(-8deg);
+}
+.dish-group-head .dgh-text { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 8px; }
+.dish-group-head .dgh-text b { font-size: calc(16px * var(--fs-scale, 1)); font-weight: 500; letter-spacing: .04em; }
+.dish-group-head .dgh-toggle { flex: none; color: var(--ink-soft); font-size: calc(14px * var(--fs-scale, 1)); }
+
+.dish-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 10px 0 0; }
+@media (max-width: 340px) { .dish-grid { grid-template-columns: repeat(2, 1fr); } }
+
+/* 一张卡 = 一道菜。卡是「纸片」不是「表格行」：
+   名字用宋体立住，下面两行小字（约多久 / 做过没有），这桌吃不了时多一行印泥色的说明。 */
+.dish-card {
+  display: flex; flex-direction: column; gap: 3px;
+  background: var(--cream); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 9px 11px; min-height: 92px;
+  font: inherit; color: var(--ink); text-align: left; cursor: pointer;
+  position: relative; overflow: hidden;
+  transition: transform .12s var(--ease-out);
+}
+.dish-card:active { transform: scale(.98); }
+.dish-card .dc-name {
+  font-size: calc(14px * var(--fs-scale, 1)); font-weight: 500; line-height: 1.35;
+  display: block; overflow-wrap: anywhere;
+}
+.dish-card .dc-meta { font-size: calc(10.5px * var(--fs-scale, 1)); color: var(--ink-soft); line-height: 1.4; }
+.dish-card .dc-flag { font-size: calc(10.5px * var(--fs-scale, 1)); color: var(--ink-soft); line-height: 1.4; }
+.dish-card .dc-ban {
+  font-size: calc(10.5px * var(--fs-scale, 1)); color: var(--seal); line-height: 1.4;
+  border-top: 1px dashed var(--line); padding-top: 3px; margin-top: auto;
+}
+/* 「做过」的卡：边框偏一点印泥色，不用色块压整张卡（那会把一屏的深浅关系打散）。 */
+.dish-card.is-made { border-color: color-mix(in srgb, var(--line) 55%, var(--seal)); }
+/* 有步骤的卡在右下角点一枚小印，表示「这张能展开」 */
+.dish-card.has-steps::after {
+  content: "谱"; position: absolute; right: 6px; bottom: 6px;
+  font-family: "Songti SC", "Noto Serif SC", "STSong", "SimSun", serif;
+  font-size: calc(9px * var(--fs-scale, 1)); line-height: 1; color: var(--seal);
+  border: 1px solid var(--seal); border-radius: 50%;
+  width: 15px; height: 15px; display: grid; place-items: center;
+  transform: rotate(-10deg); opacity: .8;
+}
+/* 这桌吃不了的卡：整张卡不淡（淡了读不出字），只让边框偏印泥色 */
+.dish-card.is-ban { border-color: color-mix(in srgb, var(--line) 60%, var(--seal)); }
+
+/* 「自己写一道」的屏内面板：以前是 prompt()——那个框能用，但它是 Material 的、阻塞的、
+   只能问一行字；这一步问完名字就得接着填食材与步骤，接不上。 */
+.cook-panel {
+  border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--cream); padding: 14px; margin: 0 0 14px;
+  box-shadow: var(--lift);
+}
+
+/* ==================== 菜谱详情 ==================== */
+
+.dish-seal { color: var(--seal); font-size: calc(30px * var(--fs-scale, 1)); }
+.dish-items { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.steps { margin: 8px 0 0; padding-left: 22px; }
+.steps li { font-size: calc(14px * var(--fs-scale, 1)); line-height: 1.75; margin-bottom: 6px; }
+
+/* 「和这桌人的关系」：这是详情页的正文，不是附注。两档（有雷 / 没雷）都给人话。 */
+.dish-rel-ok { font-size: calc(14px * var(--fs-scale, 1)); line-height: 1.65; color: var(--ok); }
+.dish-rel-bad { font-size: calc(14px * var(--fs-scale, 1)); line-height: 1.65; color: var(--seal); }
+
+/* 「加进这周的某一餐」：7 行 × 2 格。每一格是一枚按钮，最小 44px 高 */
+.dish-week { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.dish-week-row {
+  display: grid; grid-template-columns: 76px 1fr 1fr; gap: 6px; align-items: center;
+}
+.dish-week-row .dwr-day { font-size: calc(12px * var(--fs-scale, 1)); color: var(--ink-soft); letter-spacing: .04em; }
+.dish-week-row .dwr-day.today { color: var(--seal); font-weight: 600; }
+.dwr-slot {
+  font: inherit; font-size: calc(12px * var(--fs-scale, 1)); color: var(--ink-soft);
+  background: var(--cream); border: 1px solid var(--line); border-radius: 10px;
+  min-height: 44px; cursor: pointer; letter-spacing: .04em;
+}
+.dwr-slot.has { color: var(--ink); border-color: color-mix(in srgb, var(--line) 55%, var(--seal)); }
+.dwr-slot:active { transform: scale(.98); }
+
+/* ==================== 今晚吃什么（转盘） ====================
+   舞台 190px 高、一格 54px 是三格可见的高度。动画在 styles-v06.css 里
+   （.wheel-track.spin + @keyframes wheelsp，读 --wheel-dy）；这里只补味笺这一块的卡片外壳。 */
+
+.wheel-box {
+  border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--cream); padding: 14px 14px 16px; margin: 0 0 16px;
+  box-shadow: var(--lift);
+}
+/* no-motion 下动画全关（styles-v06.css 已有全局规则），
+   但轨道本身要停在抽中那一格：inline 的 transform 已经在位，不靠动画兜底。 */
+.wheel-box .wheel-track > span.pick { color: var(--ink); font-weight: 500; }
+.wheel-out .wheel-name {
+  font-size: calc(26px * var(--fs-scale, 1)); line-height: 1.25; margin: 2px 0 4px; color: var(--ink);
+}
+.wheel-empty { text-align: center; padding: 16px 6px; }
+.wheel-empty p { margin: 0 0 6px; }
+
+/* ==================== 一周菜单 ==================== */
+
+.week-pane > .wk-top {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 10px; margin-bottom: 10px;
+}
+.wk-sum { font-size: calc(15px * var(--fs-scale, 1)); margin: 2px 0 0; }
+.wk-sum b { font-size: calc(26px * var(--fs-scale, 1)); font-weight: 500; color: var(--seal); margin-right: 2px; }
+
+.wk-days { display: flex; flex-direction: column; gap: 8px; }
+.wk-day {
+  border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--cream); padding: 10px 10px 10px 12px;
+}
+/* 今天那一格用印章红描边而不是换底色：纸感靠的是线，不是色块 */
+.wk-day.today { border-color: color-mix(in srgb, var(--line) 40%, var(--seal)); }
+.wk-day-head {
+  display: flex; align-items: baseline; gap: 8px; margin-bottom: 7px;
+}
+.wk-day-head b { font-size: calc(15px * var(--fs-scale, 1)); font-weight: 500; }
+.wk-day.today .wk-day-head b { color: var(--seal); }
+
+/* 一格 = 一餐。整格可点（点开挑菜面板），左上是眉料、中间是正文、右边一枚「＋」。
+   正文允许折行：一天最多四道，名字长的时候折行比裁字诚实。 */
+.wk-slot {
+  display: grid; grid-template-columns: 40px 1fr auto; align-items: center; gap: 8px;
+  width: 100%; min-height: 46px; padding: 8px 10px; margin: 0 0 6px;
+  background: var(--paper); border: 1px dashed var(--line); border-radius: 10px;
+  font: inherit; color: var(--ink); text-align: left; cursor: pointer;
+}
+.wk-slot:last-child { margin-bottom: 0; }
+.wk-slot.has { border-style: solid; border-color: color-mix(in srgb, var(--line) 60%, var(--ink-soft)); }
+.wk-slot:active { transform: scale(.995); }
+.wk-slot .wk-cap { font-size: calc(11px * var(--fs-scale, 1)); color: var(--ink-soft); letter-spacing: .08em; }
+.wk-slot .wk-body { font-size: calc(13.5px * var(--fs-scale, 1)); line-height: 1.5; overflow-wrap: anywhere; }
+.wk-slot:not(.has) .wk-body { color: var(--ink-soft); }
+.wk-slot .wk-plus { font-size: calc(14px * var(--fs-scale, 1)); color: var(--ink-soft); }
+
+/* 挑菜面板：点某一格之后在周格上面展开。它是**屏内**的面板，不是 prompt。
+   面板自己有一圈印泥色描边——它盖着的是刚点的那一格，别让人以为格子自己变了。 */
+.wk-pick {
+  border: 1px solid var(--seal); border-radius: var(--radius);
+  background: var(--cream); padding: 12px 12px 10px; margin: 0 0 12px;
+  box-shadow: var(--lift);
+}
+.wk-pick .wkr-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  margin-bottom: 8px;
+}
+.wk-pick .wkr-head b { font-size: calc(16px * var(--fs-scale, 1)); font-weight: 500; }
+.wk-pick .wk-rm { font-size: calc(12px * var(--fs-scale, 1)); min-height: 44px; }
+.wk-opt-wrap {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px;
+  max-height: 300px; overflow-y: auto; margin-top: 8px;
+  border-top: 1px solid var(--line); padding-top: 8px;
+}
+.wk-opt {
+  display: flex; flex-direction: column; gap: 2px;
+  font: inherit; color: var(--ink); text-align: left; cursor: pointer;
+  background: var(--paper); border: 1px solid var(--line); border-radius: 10px;
+  padding: 8px 10px; min-height: 48px;
+}
+.wk-opt:active { transform: scale(.98); }
+.wk-opt b { font-size: calc(13.5px * var(--fs-scale, 1)); font-weight: 500; line-height: 1.35; }
+/* 这桌吃不了的选项不隐藏（有人就是想吃那道，自己知道怎么处理），但要说清楚 */
+.wk-opt.bad { border-color: color-mix(in srgb, var(--line) 55%, var(--seal)); }
+.wk-opt.bad .tiny { color: var(--seal); }
+
+/* 这周要买：只在「整周摊开」那一屏出现，和买菜清单同一套标签样式 */
+.wk-shop { margin-top: 14px; }
+.wk-shop .dish-items { margin-top: 8px; }
+
+/* ==================== 买菜清单 ==================== */
+
+/* 排序那两枚签：「按货架排 / 按加入时间」。
+   它们坐在 .bar 里，而 .bar 是 display:flex + flex-wrap:wrap + justify-content:space-between，
+   .seg 在里面按内容宽收缩到 131px——「按加入时间」五个字要 70px，只分到 64px，
+   于是被自己的 text-overflow:ellipsis 切成「按加入」+「…」（实测 sw 70 > cw 64）。
+   根因不是字号不够，是这一段**根本不该按内容宽排**：它和旁边那行说明是同一排的两端，
+   分段控件自己应当吃掉这一排的余量。所以给 .seg 一条 flex:1（父级是 .bar 时才有意义），
+   两个签按 flex:1 1 0 均分 —— 390 宽下各 173px，中文五个字一行放得下。
+   超过 480px 的宽窗里 .bar 本来就不换行，但让它继续吃余量同样是对的。 */
+.mkt-sort .seg { flex: 1 1 auto; min-width: 0; }
+.mkt-sort .seg button { flex: 1 1 0; min-width: 0; }
+
+/* 一行一样：复选框 20px（整行 label 可点，实际命中区是整行 48px） */
+.mrow {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; min-height: 48px;
+  background: var(--cream); border: 1px solid var(--line); border-radius: 12px;
+  cursor: pointer; text-align: left;
+}
+/* 一行一样：复选框 20px。整行 label 是它的命中区（48px）——命中区按整行算，
+   这一条与 e2e 第 41 节同一把尺（「表单控件在 label 里，点整行都算」）。
+   勾框自己那一格另有 24px 的下限（WCAG 2.5.8），所以 20 → 24；
+   这一行的 .grow 是 flex:1，让出来的 4px 从它身上来，行高不动。 */
+.mrow input[type="checkbox"] {
+  flex: none; width: 24px; height: 24px; margin: 0; accent-color: var(--ink);
+}
+.mrow .grow { flex: 1; min-width: 0; font-size: calc(14px * var(--fs-scale, 1)); line-height: 1.5; overflow-wrap: anywhere; }
+.mrow .grow b { font-weight: 500; }
+/* 已经拿到的：整行划掉（line-through 是这行的语义，不是装饰） */
+.mrow.done .grow b { text-decoration: line-through; color: var(--ink-soft); }
+.mrow.done .grow { color: var(--ink-soft); }
+.mrow .hdel {
+  flex: none; min-width: 44px; min-height: 44px;
+  display: inline-grid; place-items: center; padding: 0; font-size: calc(12px * var(--fs-scale, 1));
+}
+
+/* ==================== 排桌页：常一起吃饭的人（档案抽屉） ==================== */
+
+.people-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 10px 0 12px; }
+/* 抽屉本体用 details.drawer（styles-v06.css 已经有一份：键盘与读屏都认） */
+.people-drawer { margin: 0 0 12px; }
+.people-drawer .pd-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 0; border-bottom: 1px solid var(--line);
+}
+.people-drawer .pd-item:last-child { border-bottom: none; }
+.people-drawer .pd-main { flex: 1; min-width: 0; }
+.people-drawer .pd-main b { font-size: calc(14px * var(--fs-scale, 1)); font-weight: 500; display: block; }
+.people-drawer .pd-main .tiny { display: block; }
+.people-drawer .pd-load, .people-drawer .pd-del {
+  flex: none; min-height: 44px; min-width: 44px;
+  display: inline-grid; place-items: center;
+}
+.people-drawer .pd-empty { padding: 10px 0; }
+
+/* 排桌结果里的菜名：菜库里有卡的那几道是按钮，按得下去且看得出能按 */
+.dish-link {
+  background: none; border: none; padding: 0; margin: 0;
+  font: inherit; color: inherit; cursor: pointer;
+  border-bottom: 1px dashed color-mix(in srgb, var(--ink-soft) 60%, transparent);
+  min-height: 44px; display: inline-flex; align-items: center;
+}
+.dish-link:active { color: var(--seal); }
+/* 结果页里那一行「存成菜单长图」压在复制下面，和衣笺那两枚同一档 */
+.menu-card-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.menu-card-row .btn { flex: 1 1 46%; }
+
+/* 菜单长图的预览浮层（.sheet-view 在 styles-v06.css 里：一屏看一张，点背景关） */
+
+/* ==================== 宽窗 ====================
+   styles.css 已经把中间那一栏立成一张纸；味笺的网格在宽窗下最多三列不变——
+   它量的是一屏能扫几道菜，不是能塞几列。 */
+@media (min-width: 900px) {
+  .dish-grid { gap: 10px; }
+}
+
+/* ==================== 动效 ====================
+   只有两处：卡片按下去的缩、转盘那一列滚。转盘的关键帧在 styles-v06.css，
+   这里不重复定义（两份定义一改一漏就是「动画跑一半停住」）。 */
+:root.no-motion .wheel-box .wheel-track { animation: none !important; }

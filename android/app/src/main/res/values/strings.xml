@@ -1,0 +1,23 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">笺</string>
+    <string name="title_activity_main">笺</string>
+    <string name="package_name">com.jian.app</string>
+    <string name="custom_url_scheme">com.jian.app</string>
+    <!-- 桌面长按快捷方式（res/xml/shortcuts.xml）。短标签是长按气泡里那行字，限四个汉字；
+         长标签出现在应用列表/搜索里，说清这一点开了要干什么。
+         0.6.0 加了 today 与 note 两枚（五枚是系统上限）。 -->
+    <string name="shortcut_yi_short">过一件衣</string>
+    <string name="shortcut_yi_long">买之前，先问柜子</string>
+    <string name="shortcut_wei_short">排一桌菜</string>
+    <string name="shortcut_wei_long">这桌人的口味，叠成一张笺</string>
+    <string name="shortcut_yan_short">捞一段话</string>
+    <string name="shortcut_yan_long">说过的话，落成一张笺</string>
+    <string name="shortcut_today_short">看今天</string>
+    <string name="shortcut_today_long">今天要穿、要吃、要记的三件事</string>
+    <string name="shortcut_note_short">记一笔</string>
+    <string name="shortcut_note_long">先把话放进去，待会儿再捞成笺</string>
+    <!-- 通知渠道名（MainActivity 里建 jian-remind 时用的是这一条；写在 strings 里是为了
+         以后做多语言时不用去 Java 里找字符串）。 -->
+    <string name="channel_remind_name">到点提醒</string>
+</resources>

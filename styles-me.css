@@ -1,0 +1,215 @@
+/* 笺 · 今日 / 册 的样式（today.js + me.js 那一 lane 独占）
+   ─────────────────────────────────────────────────────────────
+   这一份只做两屏：**今日**（每天第一眼看到的那一屏）与**册**（个人主页）。
+
+   规矩（与 styles.css / styles-v06.css 一致，违反会被 contrast / dead_controls 抓到）：
+   - 颜色一律从变量取，这里不写死色值
+   - 阴影只有 --lift 一种，圆角 --radius
+   - 触摸目标 ≥44px（`.chip` 34px 是历史遗留；这一份里新摆的签一律自己撑到 44）
+   - 不用 emoji，不用渐变底色，不用第二套强调色
+   - 字要能放大到 200% 而不被裁：不写死高度、不用 overflow:hidden 关字
+*/
+
+/* ==================== 今日 · 个人档案那一小块 ====================
+   一张纸上先得有个人。这一块是按钮（整块点得动，去「册」），
+   所以它是一个 <button>，里面只放行内元素——button 里不许有交互内容。 */
+
+.today-me {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  text-align: left; font: inherit; color: var(--ink); cursor: pointer;
+  background: var(--cream); border: 1px solid var(--line);
+  border-radius: var(--radius); box-shadow: var(--lift);
+  padding: 13px 14px; margin: 0 0 16px; min-height: 64px;
+}
+.today-me:active { transform: scale(.995); }
+.today-me .tm-seal { margin-right: 0; }
+.today-me .tm-main { flex: 1; min-width: 0; display: block; }
+.today-me .tm-main b {
+  display: block; font-weight: 500; font-size: calc(17px * var(--fs-scale, 1)); line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.today-me .tm-main span {
+  display: block; font-size: calc(12px * var(--fs-scale, 1)); color: var(--ink-soft); line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.today-me .tm-meta {
+  flex: none; text-align: right; font-size: calc(11px * var(--fs-scale, 1)); color: var(--ink-soft);
+  line-height: 1.5; letter-spacing: .04em;
+}
+.today-me .tm-meta b {
+  display: block; font-family: "Songti SC", "Noto Serif SC", "STSong", "SimSun", serif;
+  font-size: calc(15px * var(--fs-scale, 1)); font-weight: 500; color: var(--ink); font-variant-numeric: tabular-nums;
+}
+
+/* ==================== 今日 · 连续天数与「补记昨天」 ====================
+   .streak / .sk-mark 在 styles-v06.css 里，这里只补那一枚「补记昨天」：
+   它是**一次操作**，不是惩罚，所以它长得像一枚安静的签，不像一个红色警报。 */
+
+.streak { flex-wrap: wrap; }
+.streak .tiny { flex: 1 1 100%; }
+@media (min-width: 480px) { .streak .tiny { flex: 0 1 auto; } }
+.streak .sk-backfill {
+  min-height: 44px; padding: 10px 14px; margin-left: 2px;
+  border-style: dashed;
+}
+
+/* ==================== 今日 · 三件事 ====================
+   硬限制：永远只画三块。每一块要么能**当场做完**（一枚主按钮），
+   要么已经做完了（显示成果 + 一枚「去看看」）。 */
+
+.today-sheet { padding: 8px 16px 10px; }
+.tj-item {
+  display: flex; flex-wrap: wrap; align-items: flex-start; gap: 6px 12px;
+  padding: 15px 0; border-top: 1px solid var(--line);
+}
+.tj-item:first-child { border-top: none; }
+.tj-no {
+  flex: none; width: 18px; padding-top: 2px;
+  font-family: "Songti SC", "Noto Serif SC", "STSong", "SimSun", serif;
+  font-size: calc(13px * var(--fs-scale, 1)); color: var(--seal); line-height: 1.5;
+}
+.tj-main { flex: 1 1 60%; min-width: 0; }
+.tj-main b {
+  display: block; font-weight: 500; font-size: calc(15px * var(--fs-scale, 1)); line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.tj-main span {
+  display: block; margin-top: 3px; font-size: calc(12px * var(--fs-scale, 1)); line-height: 1.6;
+  color: var(--ink-soft); overflow-wrap: anywhere;
+}
+/* 动作那一排：手机上独占一行、靠右；宽窗里挤在同一行也不至于把标题压成一列字。
+   做完了那一行**也走这一排**——「✓ 今天穿了」那枚勾比一行字高，压在同一行里
+   会把勾顶到行上方去（第一版的截图就是这个形状）。 */
+.tj-acts {
+  flex: 1 0 100%; display: flex; flex-wrap: wrap; gap: 8px;
+  align-items: center; justify-content: flex-end;
+}
+@media (min-width: 480px) {
+  .tj-acts { flex: 0 0 auto; padding-top: 2px; }
+}
+.tj-do { min-height: 44px; padding: 11px 20px; font-size: calc(13px * var(--fs-scale, 1)); letter-spacing: .1em; text-indent: .1em; }
+.tj-go {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 44px; padding: 10px 15px; font-size: calc(13px * var(--fs-scale, 1));
+}
+
+/* 做完了的那一行：整块留在原位（用户要看见自己的成果，不许做完就消失），
+   只是勾在标题里，编号退成一道线——已经过去了的那一件。
+   那道线原来是 var(--line)：压在纸上 1.43:1。它是这一行的序号（「一 / 二 / 三」），
+   不是装饰——WCAG 1.4.3 对它照旧生效，所以退到 --ink-soft（5.46:1）。 */
+.tj-done .tj-no { color: var(--ink-soft); }
+
+/* ==================== 今日 · 往年今日 ====================
+   .past-year 在 styles-v06.css 里；这里补那一句引文（宋体、缩进、不加引号样式）。 */
+
+.past-quote { margin-top: 8px; font-size: calc(14px * var(--fs-scale, 1)); color: var(--ink); line-height: 1.8; }
+
+/* ==================== 册 · 个人主页卡 ==================== */
+
+.me-profile { padding: 18px 16px 16px; }
+.mp-head { display: flex; align-items: flex-start; gap: 12px; }
+.mp-head .seal-mark { margin: 2px 0 0; flex: none; }
+.mp-main { flex: 1; min-width: 0; }
+.mp-main b {
+  display: block; font-weight: 500; font-size: calc(22px * var(--fs-scale, 1)); line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.mp-main span {
+  display: block; margin-top: 4px; font-size: calc(13px * var(--fs-scale, 1)); line-height: 1.65;
+  color: var(--ink-soft); overflow-wrap: anywhere;
+}
+/* 没填的档案：说的是「还没起名字」，不是灰色的小字占位——所以用 ink-soft 但保持字号，
+   句子本身已经是实话，不需要靠颜色提醒它是个坑。 */
+.mp-main b.mp-empty { color: var(--ink-soft); font-size: calc(19px * var(--fs-scale, 1)); }
+#meEdit {
+  flex: none; min-height: 44px; min-width: 52px;
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 10px 16px;
+}
+.mp-since {
+  margin-top: 12px; font-size: calc(12px * var(--fs-scale, 1)); line-height: 1.7; color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+.mp-stats {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+  margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line);
+}
+.mp-cell { min-width: 0; }
+.mp-cell b {
+  display: block;
+  font-family: "Songti SC", "Noto Serif SC", "STSong", "SimSun", serif;
+  font-size: calc(22px * var(--fs-scale, 1)); font-weight: 500; line-height: 1.2; font-variant-numeric: tabular-nums;
+}
+.mp-cell span {
+  display: block; margin-top: 2px; font-size: calc(11px * var(--fs-scale, 1)); color: var(--ink-soft);
+  letter-spacing: .06em;
+}
+.mp-edit { margin-top: 14px; }
+.mp-edit .field:last-of-type { margin-bottom: 12px; }
+
+/* ==================== 册 · 分段 ====================
+   me.js 的 layoutMe() 把散着的静态块搬进这几个 section。标题只给「需要分段」的那几块，
+   同一句话不说两遍（笺册那块自己头上就有一行「笺册 · 一共 N 张」）。 */
+
+.me-sec { margin-top: 26px; }
+.me-sec-t {
+  display: block;
+  font-size: calc(12px * var(--fs-scale, 1)); color: var(--ink-soft); letter-spacing: .1em;
+  margin: 0 0 8px;
+}
+/* 搬完家之后钱 卡与入口之间那点呼吸：个人卡与三个入口之间不需要再空一块 */
+#me .me-sec:first-of-type { margin-top: 22px; }
+#meLinks { margin-top: 0; }
+
+/* ==================== 册 · 数据体检 ==================== */
+
+/* 数据体检是最后一段，和上面那块（算力网关）之间要留出与其它分段同样的呼吸：
+   它的标题是 mh-card 外面的一个 <p>（不是 .me-sec），所以那 26px 得在这里补。 */
+#meHealth { margin-top: 26px; }
+.mh-card { padding: 16px; }
+.mh-top {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start;
+}
+.mh-top > div { min-width: 0; }
+.mh-top b {
+  display: block;
+  font-family: "Songti SC", "Noto Serif SC", "STSong", "SimSun", serif;
+  font-size: calc(24px * var(--fs-scale, 1)); font-weight: 500; line-height: 1.25; font-variant-numeric: tabular-nums;
+}
+.mh-top span { display: block; margin-top: 2px; font-size: calc(11px * var(--fs-scale, 1)); color: var(--ink-soft); line-height: 1.5; }
+.mh-meter {
+  height: 6px; margin: 14px 0 10px; border-radius: 3px;
+  background: var(--paper-2); overflow: hidden;
+}
+.mh-meter > i { display: block; height: 100%; background: var(--seal); border-radius: 3px; }
+.mh-honest { margin-bottom: 12px; line-height: 1.7; }
+.mh-list { border-top: 1px solid var(--line); }
+.mh-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 8px 0; border-bottom: 1px solid var(--line);
+  font-size: calc(13px * var(--fs-scale, 1));
+}
+.mh-row > span { color: var(--ink); letter-spacing: .02em; }
+.mh-n {
+  flex: none; font-weight: 500; color: var(--ink); font-variant-numeric: tabular-nums;
+}
+.mh-n i { font-style: normal; font-weight: 400; color: var(--ink-soft); font-size: calc(11px * var(--fs-scale, 1)); }
+.mh-n.mh-near { color: var(--seal); }
+.mh-note { margin-top: 10px; line-height: 1.7; }
+.mh-clean { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 10px; }
+.mh-clean .chip {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 44px; padding: 10px 15px; font-size: calc(13px * var(--fs-scale, 1));
+}
+
+/* 备份那一行下面的说明：按之前就该知道那份文件里有什么，不是按完才发现 */
+#backupNote { margin-top: 8px; line-height: 1.7; }
+
+/* 窄屏（320-360）上四个数字那排：格子太窄就把名字那一列压掉一点，
+   字号跟着掉一档——数字仍然认得清，别让「笺册」两个字换成两行。 */
+@media (max-width: 359px) {
+  .mp-stats { gap: 6px; }
+  .mp-cell b { font-size: calc(19px * var(--fs-scale, 1)); }
+  .mp-cell span { font-size: calc(10px * var(--fs-scale, 1)); letter-spacing: .02em; }
+  .mh-top { grid-template-columns: 1fr; }
+}

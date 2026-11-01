@@ -1,0 +1,393 @@
+/* 笺 · 笺谱（统计 / 热力图 / 成就 / 年度总结）样式
+   ─────────────────────────────────────────────────────────────
+   这一份只管「笺谱 lane」的三屏：#pu（谱）、#badges（章）、#year（这一年）。
+
+   规矩与 styles.css / styles-v06.css 一致，一条不少：
+   - **颜色一律从变量取**（--paper / --ink / --seal / --line / --cream …），
+     这里不写死任何一个色值；长图的色在 card.js 的 tokenLight() 里，也不在这里
+   - 阴影只有 --lift 一种；圆角 --radius
+   - 淡出用颜色不用 opacity（历史踩过两次：opacity 把对比度压到 AA 以下）
+   - 触摸目标 ≥ 44px（新控件；test/e2e 第 41 节会一次量全 App）
+   - 动效不超过 400ms，no-motion 下全部关掉
+   - **JS 算好的尺寸只从变量来**：热力图的格子边长由 stats.js 写进 --hc / --hg，
+     这份只消费变量（格子多宽同时决定月份刻度的位置，两处各写一次就会错开半格）
+
+   ─────────────────────────────────────────────────────────────
+   版式判断（为什么长成这样）
+   热力图是主角，它上面不许和别的控件抢：三档切换、图、图例，然后才是统计块。
+   统计块之间用一条发丝线分开，不用卡片套卡片——纸上的分栏靠线，不靠盒子。
+   数字用宋体 + tabular-nums：宋体是这一版的语气，tabular 让数字在页面上不抖。
+*/
+
+/* ==================== 热力图 ====================
+   结构（stats.js 的 renderHeat 拼出来的）：
+     .seg#heatRange            三档：近 6 周 / 近半年 / 近一年
+     .heat-wrap                --hc 格子边长 / --hg 间距（JS 给）
+       .heat-days              左边一列「一 / 三 / 五」
+       .heat-scroll            可横向滚动的窗口
+         .heat-months          月份刻度（绝对定位，宽度 = 整个网格宽）
+         .heat#heatGrid        网格本身，role=grid，tabindex=0（键盘交互挂在整块上）
+     .heat-legend              少 ▫▫▫▫▫ 多 · 今天 · N 天有记录
+
+   为什么允许横向滚动而不是缩到放得下：近一年是 53 列。缩到 360 宽时一格只剩 4px，
+   五档深浅就分不出来了——那正是「一眼看出哪段时间用得最多」这件事的全部内容。
+   宁可滚（并且默认滚到最右，让今天一定看得见），也不许把格子压成马赛克。 */
+
+.heat-wrap {
+  display: flex; gap: 8px; align-items: flex-start;
+  margin: 12px 0 8px;
+}
+/* 星期那一列：不跟着横向滚，它是这张图的标尺 */
+.heat-days {
+  display: flex; flex-direction: column; flex: none;
+  padding-top: 22px;                 /* 让「一」对齐第一行，而不是月份那一条 */
+  gap: var(--hg, 3px);
+}
+.heat-days span {
+  height: var(--hc, 14px); line-height: var(--hc, 14px);
+  font-size: calc(10px * var(--fs-scale, 1)); color: var(--ink-soft);
+  width: 12px; text-align: right;
+}
+.heat-scroll {
+  flex: 1; min-width: 0; overflow-x: auto; overflow-y: hidden;
+  scrollbar-width: none;
+  padding-right: 2px;                /* 右边留一点空气，最后一列不贴着屏幕边 */
+}
+.heat-scroll::-webkit-scrollbar { display: none; }
+/* 月份刻度：一条 22px 高的细带，压在网格上面。
+   margin-inline:auto —— 近 6 周（210px）放得下时居中，别在右边留一大块空白；
+   近一年（741px）放不下，auto 自动失效，照旧横向滚。 */
+.heat-months {
+  position: relative; height: 22px;
+  font-size: calc(10px * var(--fs-scale, 1)); color: var(--ink-soft);
+  letter-spacing: .04em;
+  margin-inline: auto;
+}
+.heat-months span { position: absolute; top: 2px; white-space: nowrap; }
+
+/* 网格：行 = 星期（周一起），列 = 一周。
+   **overflow 必须显式钉成 visible**：styles-v06.css 里 `.heat { overflow-x: auto }`
+   是给旧版 26 周图用的，那条会在这里再开一层滚动容器——实测滚动条一动，
+   整块 .heat（宽 324）被推出可视区，屏幕上是**一片空白**（371 个格子一个都看不见）。
+   滚动只许由外层 .heat-scroll 那一层负责，两层一起滚就是这种画不出来又不报错的故障。 */
+.heat {
+  display: flex; gap: var(--hg, 3px);
+  align-items: flex-start;
+  border-radius: 4px;
+  overflow: visible; padding: 0;
+}
+.heat-week { display: flex; flex-direction: column; gap: var(--hg, 3px); }
+.heat-cell {
+  width: var(--hc, 14px); height: var(--hc, 14px);
+  border-radius: 3px; flex: none; display: block;
+  background: var(--paper-2);
+  border: 1px solid transparent;
+}
+/* 五档深浅：用 --seal 往 --paper-2 里混，不写死四个红。
+   主题一换（白天的纸 → 夜里的纸）这五档自动跟着走，不需要第二套色。 */
+.heat-cell.l1 { background: color-mix(in srgb, var(--seal) 22%, var(--paper-2)); }
+.heat-cell.l2 { background: color-mix(in srgb, var(--seal) 42%, var(--paper-2)); }
+.heat-cell.l3 { background: color-mix(in srgb, var(--seal) 64%, var(--paper-2)); }
+.heat-cell.l4 { background: color-mix(in srgb, var(--seal) 88%, var(--paper-2)); }
+/* 今天：一圈墨色边框。它是这张图上唯一一个「不许被误读」的格子。 */
+.heat-cell.today { border-color: var(--ink); }
+/* 还没到的日子：画出来但不占眼（它们是位置，不是记录） */
+.heat-cell.future { opacity: .28; }
+/* 键盘选中的那一格：红描边，和「今天」的墨边能同时看清 */
+.heat-cell.sel { outline: 2px solid var(--seal); outline-offset: 1px; }
+
+/* 图例：五档深浅 + 今天 + 计数 */
+.heat-legend {
+  display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
+  font-size: calc(11px * var(--fs-scale, 1)); color: var(--ink-soft); margin-top: 6px;
+}
+.heat-legend .heat-cell { width: 11px; height: 11px; border-radius: 2px; }
+.heat-legend .heat-today-hint {
+  display: inline-flex; align-items: center; gap: 4px;
+  margin-left: 10px; padding-left: 10px; border-left: 1px solid var(--line);
+}
+.heat-legend .heat-count { margin-left: auto; }
+
+/* 三档切换那一排：复用 styles-v06.css 的 .seg（一排签里只能选一个）。
+   这里只加它和热力图之间的呼吸。 */
+#heatRange { margin: 2px 0 4px; }
+
+/* ==================== 统计块 ====================
+   一块 = 小印 + 标题 + 统计格 + 「这些数是怎么算的」。
+   .sb-note 是**必须**的：这一屏上不许出现一个反推不出分子分母的百分比。 */
+
+.stat-block { margin: 0 0 26px; }
+.sb-head {
+  display: flex; align-items: center; gap: 8px;
+  font-size: calc(15px * var(--fs-scale, 1)); font-weight: 500; letter-spacing: .1em;
+  margin: 0 0 10px; color: var(--ink);
+}
+/* 一枚小印：和全 App 的 .seal-mark 同一族，但矮一档（它只是分栏的眉）。
+   字从 var(--seal) 改成 var(--ink)，理由与 styles-v06.css 的 .sk-mark 那条相同：
+   11px 的印章红压 --paper-2 只有 4.14:1（白天）、压 --paper 也才 4.57:1，
+   而这一枚坐在统计块里，不一定落在 --paper 上。红色留给 1px 描边——
+   它只需满足非文本那条 3:1（压纸 4.14 够），字交给 --ink（11.75:1）。 */
+.sb-mark {
+  display: inline-grid; place-items: center;
+  width: 22px; height: 22px; flex: none;
+  border: 1px solid var(--seal); border-radius: 50%;
+  color: var(--ink); font-size: calc(11px * var(--fs-scale, 1)); line-height: 1;
+  transform: rotate(-8deg);
+}
+/* 「这些数是怎么来的」：12.5px 而不是 .tiny(12px)——它是这一屏的**产品承诺**，
+   不是脚注。压到 11px 就没人读了，而没人读的百分比就是假话。 */
+.sb-note {
+  font-size: calc(12.5px * var(--fs-scale, 1)); line-height: 1.75; color: var(--ink-soft);
+  margin: 10px 0 0; letter-spacing: .01em;
+}
+.sb-extra { margin-top: 8px; }
+.sb-line {
+  font-size: calc(12px * var(--fs-scale, 1)); line-height: 1.8; color: var(--ink);
+  margin: 0; letter-spacing: .01em;
+}
+.sb-line + .sb-line { margin-top: 2px; }
+/* 薄数据那一块：不是空态（它有话说），只是暂时没有数。
+   所以左边一道淡线做标记，而不是把整块灰掉。 */
+.stat-block.thin .sb-note { border-left: 2px solid var(--line); padding-left: 12px; }
+
+/* 统计格：复用 styles-v06.css 的 .stat / .stat-grid。
+   这里只补一件事——笺谱的密度比「今日」那一屏高，格子矮一档。 */
+#puBody .stat { min-height: 76px; padding: 12px 12px 10px; }
+#puBody .stat b { font-size: calc(24px * var(--fs-scale, 1)); }
+
+/* 三种颜色 */
+.tone-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+.tone-item {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--cream); border: 1px solid var(--line);
+  border-radius: 999px; padding: 6px 14px 6px 8px;
+  min-height: 44px;
+}
+.tone-dot {
+  width: 18px; height: 18px; border-radius: 50%; flex: none;
+  border: 1px solid var(--line);           /* 浅色点压在浅纸上要有边，否则像漏印 */
+}
+.tone-item b { font-size: calc(15px * var(--fs-scale, 1)); font-weight: 500; letter-spacing: .06em; }
+.tone-item .tiny { font-size: calc(11px * var(--fs-scale, 1)); }
+
+/* 入口那一段（章 / 这一年 / 找东西）：与上面统计块之间加一条发丝线 */
+.pu-more {
+  margin: 4px 0 10px; padding-top: 16px;
+  border-top: 1px solid var(--line);
+  letter-spacing: .16em;
+}
+#pu .list { margin-bottom: 8px; }
+
+/* ==================== 屏内小面板（.stats-pop） ====================
+   成就详情、某一天的流水都用它。**不用 alert / confirm / toast**：
+   要读几行的东西塞进 3 秒就消失的提示条里等于没写。
+   固定浮层，点背景或按 Esc 关；打开时焦点进面板，关掉时回到原处。 */
+
+.stats-pop {
+  position: fixed; inset: 0; z-index: 70;
+  background: rgba(20, 18, 16, .72);
+  display: grid; place-items: end center;
+  padding: 20px 16px calc(20px + var(--sab));
+}
+.sp-card {
+  width: 100%; max-width: 460px; max-height: 78vh;
+  display: flex; flex-direction: column;
+  background: var(--paper); border: 1px solid var(--line);
+  border-radius: var(--radius); box-shadow: var(--lift);
+  overflow: hidden;
+}
+.sp-bar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 4px 10px 18px;
+  border-bottom: 1px solid var(--line);
+}
+.sp-title { flex: 1; min-width: 0; font-size: calc(17px * var(--fs-scale, 1)); letter-spacing: .08em; }
+.sp-close {
+  background: none; border: none; font: inherit; font-size: calc(22px * var(--fs-scale, 1)); line-height: 1;
+  color: var(--ink-soft); width: 44px; height: 44px; flex: none;
+  display: grid; place-items: center; cursor: pointer; border-radius: 12px;
+}
+.sp-close:active { color: var(--seal); }
+.sp-body {
+  padding: 16px 18px 20px; overflow-y: auto;
+  font-size: calc(13px * var(--fs-scale, 1)); line-height: 1.7; color: var(--ink);
+}
+
+/* 某一天的流水：时间 / 类型 / 内容 三列 */
+.day-list { margin-top: 12px; border-top: 1px solid var(--line); }
+.day-row {
+  display: grid; grid-template-columns: 48px 58px 1fr;
+  gap: 8px; align-items: baseline;
+  padding: 9px 0; border-bottom: 1px solid var(--line);
+  font-size: calc(13px * var(--fs-scale, 1));
+}
+.day-time { font-size: calc(11.5px * var(--fs-scale, 1)); color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.day-kind {
+  font-family: "Songti SC", "Noto Serif SC", "STSong", "SimSun", serif;
+  color: var(--seal); font-size: calc(13px * var(--fs-scale, 1)); letter-spacing: .04em;
+}
+.day-ref { min-width: 0; overflow-wrap: anywhere; color: var(--ink); }
+
+/* ==================== 成就 ==================== */
+
+/* 最近解锁那一排：三枚，标「新」的是 7 天内得的。
+   「新」不用颜色块表达（那会变成一个抢眼的红标），用一枚小方签。 */
+.badge-recent { margin: 0 0 6px; }
+.badge-recent > .tiny { margin-bottom: 8px; letter-spacing: .16em; }
+.br-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.br-item {
+  display: inline-flex; align-items: center; gap: 7px;
+  min-height: 44px; padding: 5px 14px 5px 6px;
+  background: var(--cream); border: 1px solid var(--line);
+  border-radius: 999px; font-size: calc(12px * var(--fs-scale, 1)); color: var(--ink);
+}
+.br-item b {
+  width: 28px; height: 28px; flex: none;
+  display: grid; place-items: center;
+  border: 1px solid var(--seal); border-radius: 50%;
+  color: var(--seal); font-size: calc(12px * var(--fs-scale, 1)); font-weight: 500; transform: rotate(-8deg);
+}
+.br-item.is-new::after {
+  content: "新"; font-size: calc(9px * var(--fs-scale, 1)); letter-spacing: .1em;
+  color: var(--seal); border: 1px solid var(--seal); border-radius: 3px;
+  padding: 0 3px; line-height: 1.4;
+}
+.br-item .tiny { color: var(--ink-soft); font-size: calc(10.5px * var(--fs-scale, 1)); }
+
+/* 分组头：宋体 + 大字距，右边跟「3 / 7」 */
+.badge-group {
+  display: flex; align-items: baseline; gap: 8px;
+  margin: 22px 0 10px;
+  padding-bottom: 6px; border-bottom: 1px solid var(--line);
+}
+.badge-group:first-of-type { margin-top: 4px; }
+.bgg-name { font-size: calc(18px * var(--fs-scale, 1)); letter-spacing: .2em; color: var(--ink); }
+.badge-group .tiny {
+  margin-left: auto; font-size: calc(11px * var(--fs-scale, 1)); color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 章格：复用 styles-v06.css 的 .badge / .bg-mark / .bg-name，
+   这里补「进度条」和「新」两样，以及网格的呼吸。
+   minmax(0, 1fr) 不是装饰：.badge 有 aspect-ratio:1，默认的 1fr 最小宽度是 auto，
+   列的 min-content 会被撑到「格子高度」那么宽 → 4 列一起溢出纸边（实测 411 > 346）。 */
+#badgeGrid { gap: 9px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+/* 「最近解锁」与四个分组头**横跨整行**：它们是分栏的眉，不是一枚章。
+   不写这一条，它们会被当成网格项塞进一格 80px 的格子里——实测「攒了三十天」
+   被挤成一列竖排的字（第 1 版真的这么渲染出来了）。 */
+#badgeGrid .badge-recent,
+#badgeGrid .badge-group { grid-column: 1 / -1; }
+#badgeGrid .badge.is-new::before {
+  content: "新"; position: absolute; top: 5px; right: 6px;
+  font-size: calc(9px * var(--fs-scale, 1)); letter-spacing: .06em; color: var(--seal);
+  border: 1px solid var(--seal); border-radius: 3px; padding: 0 3px; line-height: 1.4;
+}
+/* 未解锁那格的进度：一根 3px 细条贴着底边。
+   它是「还差几步」的视觉版，**不替代文字**——点开面板里那句「还差 3 次」才是准数。 */
+#badgeGrid .bg-prog {
+  position: absolute; left: 8px; right: 8px; bottom: 6px;
+  height: 3px; border-radius: 2px; background: var(--paper-2); overflow: hidden;
+}
+/* 有进度条的格子，底下要给那根条留出一条车道。
+   原来没有这条：.badge 是 padding:6px + place-items:center，内容垂直居中，
+   79.8px 的格子里 20px 章面 + 6px 间距 + 14px 名字刚好顶到离底边 6px 的位置，
+   而那根条就在 6px 处起 —— 实测名字底边 510、进度条顶边 509，**压进去 1.1px**
+   （「还差 8 件」的下缘被那根线切掉一丝，四列里每一列都这样）。
+   改法：只给带 .bg-prog 的格子补 12px 下内距，把内容整体抬起来；
+   用 :has() 而不是给所有 .badge 加，否则同一网格里已解锁的那些会跟着上移，
+   两种格子的章面高度就不在一条线上了（.seg 那条 3 段规则也是用 :has()，同一副写法）。 */
+#badgeGrid .badge:has(.bg-prog) { padding-bottom: 12px; }
+#badgeGrid .bg-prog > i {
+  display: block; height: 100%; background: var(--seal);
+  border-radius: 2px; min-width: 0;
+}
+/* 未解锁时章面本来就是虚线淡墨（.badge.locked），进度条也压淡一档：
+   但淡的是**颜色**不是透明度（透明度会把条压到看不见）。 */
+#badgeGrid .badge.locked .bg-prog > i { background: var(--line); }
+
+/* 章详情面板里那几块 */
+.bp-head { display: flex; gap: 14px; align-items: center; margin-bottom: 14px; }
+.bp-mark {
+  width: 68px; height: 68px; flex: none;
+  display: grid; place-items: center;
+  border: 2px dashed var(--line); border-radius: 50%;
+  /* 章面那颗字以前是 var(--line)：26px 按大字档要 3:1，实测 1.43:1（夜里 1.26:1）。
+     未解锁的观感由虚线描边给，字退到 --ink-soft（5.46:1）但读得出。 */
+  color: var(--ink-soft); font-size: calc(26px * var(--fs-scale, 1)); line-height: 1;
+  transform: rotate(-8deg);
+}
+.bp-mark.on { border: 2px solid var(--seal); color: var(--seal); }
+.bp-main { flex: 1; min-width: 0; }
+.bp-name { font-size: calc(20px * var(--fs-scale, 1)); letter-spacing: .08em; margin: 0 0 3px; }
+.bp-when { font-size: calc(13px * var(--fs-scale, 1)); color: var(--ink); margin: 0 0 10px; line-height: 1.7; }
+.bp-prog { margin: 4px 0 12px; }
+.bp-prog .meter { height: 8px; border-radius: 4px; }
+.bp-hint {
+  font-family: "Songti SC", "Noto Serif SC", "STSong", "SimSun", serif;
+  font-size: calc(17px * var(--fs-scale, 1)); color: var(--seal); margin: 10px 0 2px; letter-spacing: .06em;
+}
+
+/* ==================== 这一年（#year） ==================== */
+
+#yearBody .report { padding: 24px 18px 26px; }
+.year-h1 { font-size: calc(34px * var(--fs-scale, 1)); letter-spacing: .14em; margin: 6px 0 12px; }
+#yearBody .quote { font-size: calc(17px * var(--fs-scale, 1)); }
+
+/* 12 个月的柱：一根格子一根柱，等高容器里往上长。
+   柱子用 CSS 而不是 canvas，是为了每根柱都能带 aria-label（读屏器念得出「3 月 7 笔」）。 */
+.year-months {
+  display: grid; grid-template-columns: repeat(12, 1fr);
+  gap: 4px; align-items: end;
+  height: 132px; margin: 16px 0 6px;
+  padding-bottom: 18px;                      /* 给月份数字留位置 */
+  position: relative;
+}
+.ym-col {
+  position: relative; height: 100%;
+  display: flex; flex-direction: column; justify-content: flex-end; align-items: center;
+}
+.ym-num {
+  font-size: calc(9.5px * var(--fs-scale, 1)); color: var(--ink-soft); font-variant-numeric: tabular-nums;
+  height: 14px; line-height: 14px;
+}
+.ym-bar {
+  width: 100%; max-width: 22px;
+  background: color-mix(in srgb, var(--seal) 40%, var(--paper-2));
+  border-radius: 3px 3px 0 0;
+  min-height: 1px;
+  transition: height .32s var(--ease-out);
+}
+/* 最高的那一根实心：一眼看出「哪个月用得最多」，不用去读数字 */
+.ym-bar.top { background: var(--seal); }
+.ym-label {
+  position: absolute; bottom: -18px;
+  font-size: calc(9.5px * var(--fs-scale, 1)); color: var(--ink-soft); font-variant-numeric: tabular-nums;
+}
+/* 只把 1 / 6 / 12 画出来，12 个数字在 360 宽下会糊成一片 */
+.ym-col .ym-label { color: transparent; }
+.ym-col:nth-child(1) .ym-label,
+.ym-col:nth-child(6) .ym-label,
+.ym-col:nth-child(12) .ym-label { color: var(--ink-soft); }
+.year-axis { margin: 14px 0 0; letter-spacing: .02em; }
+
+#yearBody .stat-grid { margin-top: 16px; }
+#yearBody .sb-note { font-size: calc(12.5px * var(--fs-scale, 1)); margin-top: 10px; }
+#yearBody .drawer { margin-top: 16px; }
+#yearBody .row { margin-top: 18px; }
+.year-foot { margin-top: 14px; line-height: 1.7; }
+
+/* ==================== 宽窗 ====================
+   .screen 在宽窗下仍然是一张 480 的纸（styles.css 管的），这里只补一件事：
+   面板在宽窗下不该贴着底部，居中更像「弹出来的一张纸」。 */
+@media (min-width: 640px) {
+  .stats-pop { place-items: center; }
+  .sp-card { max-width: 480px; }
+}
+
+/* ==================== 动效 ==================== */
+/* 只有两处会动：面板的入场、月柱的生长。都在 400ms 内，no-motion 下全部关掉
+   （:root.no-motion * 的全局规则已经兜住了 duration）。 */
+:root:not(.no-motion) .stats-pop { animation: span-in .22s var(--ease-out) both; }
+@keyframes span-in { from { opacity: 0; } to { opacity: 1; } }
+:root:not(.no-motion) .sp-card { animation: card-up .26s var(--ease-out) both; }
+@keyframes card-up { from { transform: translateY(14px); } to { transform: none; } }
