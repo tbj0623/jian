@@ -136,6 +136,32 @@
 /* 一行四枚动作：动作栏不换行、不被压扁。正文那格是 1fr，会自己缩。 */
 .check .acts { flex-wrap: nowrap; }
 
+/* 0.6.2：改字与铃/挪/时间/删除共用 44px 热区；正文仍优先得到宽度。 */
+.check .yedit {
+  background: none; border: 0; font: inherit; cursor: pointer;
+  color: var(--ink-soft); font-size: calc(11px * var(--fs-scale, 1));
+  letter-spacing: .06em; line-height: 1;
+  margin: -9px 0; padding: 12px 8px; border-radius: 10px;
+  min-width: 44px; min-height: 44px;
+}
+.check .yedit[aria-expanded="true"] { color: var(--ink); font-weight: 600; }
+.check .yedit:active { color: var(--seal); }
+.check .yan-edit-panel {
+  grid-column: 1 / -1; display: flex; flex-direction: column; gap: 8px;
+  min-width: 0; margin-top: 8px; color: var(--ink); text-decoration: none;
+}
+.check .yan-edit-panel textarea {
+  box-sizing: border-box; width: 100%; min-width: 0; min-height: 94px;
+  padding: 10px 12px; resize: vertical; border-radius: 10px;
+  border: 1px solid var(--line); background: var(--paper);
+  color: var(--ink); font: inherit; line-height: 1.6;
+}
+.check .yan-edit-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.check.done .yan-edit-panel, .check.done .yan-edit-actions { text-decoration: none; color: var(--ink); }
+@media (min-width: 401px) and (max-width: 540px) {
+  .check .acts { grid-column: 1 / -1; justify-self: end; margin-top: 4px; }
+}
+
 /* ==================== 寄去别处 ==================== */
 
 .yan-jump {

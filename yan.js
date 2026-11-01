@@ -34,6 +34,8 @@ function dayLabel(at) {
 let moveOpen = [];
 /** 同上，展开着「改时间」的那几条。两排选择器不同时摊着：见各自的点击处理。 */
 let whenOpen = [];
+/** 正在编辑文字的那一条，只是界面态，不进入备份。 */
+let editOpen = [];
 
 /** 手动定时常用的几枚签。引擎把「周五」听成这周五、把「月底」听漏了的时候，
  *  这几枚能盖掉它——时间猜错比类别猜错更疼，待办过期是看不见的。 */
@@ -79,6 +81,41 @@ function setWhen(i, w) {
   });
 }
 
+/** 修改一句话，同时维护按原话关联的提醒和再次导入的去重。 */
+function editYanLine(i, value) {
+  const c = state.yanCards[i];
+  if (!c) return false;
+  const next = String(value ?? "").trim();
+  if (!next || next.length > 500) { toast(next ? "这一条最多 500 字" : "文字不能留空"); return false; }
+  if (next === c.line) {
+    editOpen = []; renderYan();
+    $(`#yanOut [data-edit="${i}"]`)?.focus({ preventScroll: true });
+    return true;
+  }
+  if (state.yanCards.some((x) => x !== c && x.k === c.k && x.line === next)) {
+    toast("同一类别已有这一句，原来的条目未覆盖"); return false;
+  }
+  const old = c.line, oldSource = c.sourceLine || null;
+  const shared = state.yanCards.some((x) => x !== c && x.line === old);
+  const linked = shared ? [] : (state.reminders || []).filter((r) => r.from === "yan" && !r.done && r.text === old);
+  c.sourceLine = oldSource || old; c.line = next;
+  linked.forEach((r) => { r.text = next; });
+  editOpen = []; moveOpen = []; whenOpen = [];
+  save(state); renderYan();
+  if (linked.length) rescheduleAll();
+  const back = $(`#yanOut [data-edit="${i}"]`) || $("#yanSearch");
+  back?.focus({ preventScroll: true });
+  toastUndo(linked.length ? "已改文字，提醒也已同步" : shared ? "已改文字，共用提醒仍留给其他条目" : "已改文字，类别与时间没动", () => {
+    if (!state.yanCards.includes(c) || c.line !== next) { toast("这一条又变过了，不能撤销旧编辑"); return; }
+    c.line = old;
+    if (oldSource) c.sourceLine = oldSource; else delete c.sourceLine;
+    linked.forEach((r) => { if (state.reminders.includes(r) && r.text === next) r.text = old; });
+    save(state); renderYan();
+    if (linked.length) rescheduleAll();
+  });
+  return true;
+}
+
 function normCards(r) {
   const out = [];
   if (!r || typeof r !== "object") return out;
@@ -113,7 +150,8 @@ const cardKey = (c) => c.k + "｜" + c.line;
  *  又算一张，用户看到的是「我明明挪走了，怎么变成两条」。 */
 function mergeCards(next) {
   const seen = new Set(state.yanCards.map(cardKey));
-  const claimed = new Set(state.yanCards.filter((c) => c.moved).map((c) => c.line));
+  const claimed = new Set(state.yanCards.flatMap((c) =>
+    [c.moved ? c.line : null, c.sourceLine || null].filter(Boolean)));
   const fresh = next.filter((c) => !seen.has(cardKey(c)) && !claimed.has(c.line));
   if (fresh.length) state.yanCards = state.yanCards.concat(fresh);
   return fresh.length;
@@ -376,6 +414,7 @@ function yanRow(c, second) {
   const i = all.indexOf(c);
   const open = moveOpen.includes(i);
   const wopen = whenOpen.includes(i);
+  const eopen = editOpen.includes(i);
   const others = ORDER.filter((k) => k !== c.k);
   const rem = reminderFor(c);
   // 「寄去别处」：要买的送去衣笺过一件，像顿饭的已定送去味笺排桌。
@@ -405,6 +444,8 @@ function yanRow(c, second) {
                 aria-label="把这一条挪到别的类别">${c.moved ? "已挪" : "挪"}</button>
         <button type="button" class="wtimer" data-when="${i}" aria-expanded="${wopen}"
                 aria-label="改这一条的时间">${c.wset ? "已定时" : "时间"}</button>
+        <button type="button" class="yedit" data-edit="${i}" aria-expanded="${eopen}"
+                aria-label="修改这一条的文字">改字</button>
         <button type="button" class="drop" data-drop="${i}" aria-label="删掉这一条">×</button>
       </span>
       ${open ? `<div class="move-chips">${others.map((k) =>
@@ -415,6 +456,14 @@ function yanRow(c, second) {
         <span class="datepick">挑一天<input type="date" data-wday="${i}" aria-label="改到某一天"></span>
         <button type="button" class="chip" data-when-to="" data-when-i="${i}">清掉</button>
         ${c.when ? `<button type="button" class="chip" data-slot-i="${i}" data-slot-to="${c.slot === "evening" ? "day" : "evening"}">${c.slot === "evening" ? "放回白天" : "放到今晚"}</button>` : ""}
+      </div>` : ""}
+      ${eopen ? `<div class="yan-edit-panel">
+        <label class="tiny" for="yanEditText-${i}">修改这句话 · 类别、时间和完成状态不变</label>
+        <textarea id="yanEditText-${i}" data-edit-input="${i}" maxlength="500" rows="3" aria-label="这条的原话">${esc(c.line)}</textarea>
+        <div class="yan-edit-actions">
+          <button type="button" class="ybtn sm" data-edit-save="${i}">保存文字</button>
+          <button type="button" class="ybtn sm" data-edit-cancel="${i}">算了</button>
+        </div>
       </div>` : ""}
       ${yanArchiveMode ? `<div class="move-chips">
         <button type="button" class="ybtn sm" data-unarchive="${i}">放回这张笺</button>
@@ -838,6 +887,7 @@ function paintYan() {
     state.yanCards = state.yanCards.filter((c) => c.archivedAt || !c.done);
     moveOpen = [];                      // 下标全变了，两排展开态一起作废
     whenOpen = [];
+    editOpen = [];
     save(state); renderYan();
     toastUndo(`已清掉 ${gone.length} 条了结的（笺册里那张没动）`, () => {
       // 按原下标升序插回去：倒着插会全落到末尾，撤销之后顺序和勾掉前不一样
@@ -853,6 +903,7 @@ function paintYan() {
       const [gone] = state.yanCards.splice(i, 1);
       moveOpen = [];                    // 下标整体前移，展开着的选择器会指到别的条上
       whenOpen = [];                    // 两排选择器都是按下标记的，一起作废
+      editOpen = [];
       save(state); renderYan();
       toastUndo("已删掉这一条", () => {
         state.yanCards.splice(Math.min(i, state.yanCards.length), 0, gone);
@@ -860,11 +911,48 @@ function paintYan() {
       });
     };
   });
+  // 改文字的面板放在行内，编辑期间不重建 DOM；保存时才落盘。
+  $$("#yanOut [data-edit]").forEach((b) => {
+    b.onclick = () => {
+      const i = +b.dataset.edit;
+      moveOpen = []; whenOpen = [];
+      editOpen = editOpen.includes(i) ? [] : [i];
+      renderYan();
+      const field = $(`#yanOut [data-edit-input="${i}"]`);
+      if (field) { field.focus({ preventScroll: true }); field.setSelectionRange(field.value.length, field.value.length); }
+      else { const back = $(`#yanOut [data-edit="${i}"]`); if (back) back.focus({ preventScroll: true }); }
+    };
+  });
+  $$("#yanOut [data-edit-save]").forEach((b) => {
+    b.onclick = () => {
+      const i = +b.dataset.editSave, field = $(`#yanOut [data-edit-input="${i}"]`);
+      if (field) editYanLine(i, field.value);
+    };
+  });
+  $$("#yanOut [data-edit-cancel]").forEach((b) => {
+    b.onclick = () => {
+      const i = +b.dataset.editCancel;
+      editOpen = []; renderYan();
+      const back = $(`#yanOut [data-edit="${i}"]`); if (back) back.focus({ preventScroll: true });
+    };
+  });
+  $$("#yanOut [data-edit-input]").forEach((el) => {
+    el.onkeydown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); editYanLine(+el.dataset.editInput, el.value); }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        const i = +el.dataset.editInput;
+        editOpen = []; renderYan();
+        $(`#yanOut [data-edit="${i}"]`)?.focus({ preventScroll: true });
+      }
+    };
+  });
   // 类别是关键词猜的，猜错了不该只能整条删掉。挪一下，原话、时间、说话人都跟着走。
   $$("#yanOut [data-move]").forEach((b) => {
     b.onclick = () => {
       const i = +b.dataset.move;
       whenOpen = [];                    // 一屏只摊一排签：两排同时摊着，谁都不知道 × 归谁
+      editOpen = [];
       moveOpen = moveOpen.includes(i) ? moveOpen.filter((x) => x !== i) : [i];
       renderYan();
     };
@@ -888,6 +976,7 @@ function paintYan() {
     b.onclick = () => {
       const i = +b.dataset.when;
       moveOpen = [];                    // 与上面相反：一屏只摊一排签
+      editOpen = [];
       whenOpen = whenOpen.includes(i) ? whenOpen.filter((x) => x !== i) : [i];
       renderYan();
     };

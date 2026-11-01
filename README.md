@@ -5,11 +5,11 @@
 
 **不联网也能用。** 网关是可选的：填了它，多「认照片」和「抄截图」两条路；不填，三张笺照常出结论。
 
-**直接体验：** [网页版](https://tbj0623.github.io/jian/) · [安卓 APK / AAB 下载](https://github.com/tbj0623/jian/releases/tag/v0.6.1) · [隐私政策](https://tbj0623.github.io/jian-privacy/)。当前为 GitHub 公开测试版，尚未通过 Google Play 上架审核。
+**直接体验：** [网页版](https://tbj0623.github.io/jian/) · [安卓 APK / AAB 下载](https://github.com/tbj0623/jian/releases/tag/v0.6.2) · [隐私政策](https://tbj0623.github.io/jian-privacy/)。当前为 GitHub 公开测试版，尚未通过 Google Play 上架审核。
 
 **开源：** 自有源码按 [MIT License](LICENSE) 发布；贡献说明见 [CONTRIBUTING.md](CONTRIBUTING.md)，安全报告见 [SECURITY.md](SECURITY.md)。模型密钥、Android 签名文件、真实用户备份及第三方网页抓取材料不属于公开源码。仓库不提供第三方模型额度或托管网关。
 
-- 版本 **0.6.1** / `versionCode 29` / `minSdk 24` / `targetSdk 36`
+- 版本 **0.6.2** / `versionCode 30` / `minSdk 24` / `targetSdk 36`
 - `index.html` 553 行：**24 个 `<script>`**、**7 个样式表**（另有 manifest + 2 个图标，共 10 个 `<link>`）、
   **17 屏**；**8 个 Capacitor 插件**
 - 菜库 **63 道**、成就 **30 枚**、桌面快捷方式 **5 枚**、长图 **6 种**（全部 1080×1920）
@@ -328,7 +328,7 @@ npm run providers     # 逐家真跑一遍认衣服 / 抄截图（要网络与�
 | 命令 | 跑多久 | 跑什么 |
 |---|---|---|
 | `npm test` | **约 12 秒** | `fast` 八道：锚点 preflight（1 秒）/ 引擎 200 条 / 两端一致性 170 条 / 网关 HTTP 41 条 / `allowBackup` 陈述 / 商店陈述 55 条 / 设备门守卫 52 条。**不用浏览器、不碰真设备**。新克隆尚无 APK 时仅跳过 3 条二进制产物核验，出包后自动严格检查 |
-| `npm run test:v06` | **约 10 分钟** | 0.6.0 那 9 道浏览器门（要本机 Edge，headless）：smoke / light_audit / 衣 / 味 / 言 / 笺谱 / 长图 / 册 / 无障碍。最后一门 a11y 最慢（3 分钟），前面八道两分钟左右一道 |
+| `npm run test:v06` | **约 10 分钟** | 0.6.x 的 10 道浏览器门（含言笺改字）（要本机 Edge，headless）：smoke / light_audit / 衣 / 味 / 言 / 笺谱 / 长图 / 册 / 无障碍。最后一门 a11y 最慢（3 分钟），前面八道两分钟左右一道 |
 | `npm run test:e2e` | **20 多分钟** | 老六道：全流程 e2e / 网关 e2e / 对比度扫描 / 断网重开 / 帧耗时 / 「按了没反应的控件」 |
 | `npm run test:pkg` | **几秒** | 只验产物，八项：www 漂移 / 安卓资产 / cap 配置副本 / 墨色对账 / sw 清单 / 载荷重量 / APK+AAB 里是哪版前端 / 桌面快捷方式 |
 | `npm run test:gate` | **十几分钟** | 守门自检：395 段「只改一处」的注入，每次都必须炸（赶时间用 `--only 关键词` 只跑新加的那几条） |

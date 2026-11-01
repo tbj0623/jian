@@ -1,6 +1,6 @@
 {
   "name": "jian",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "private": true,
   "description": "笺 - H5 + Capacitor 双端工程（Android APK / iOS）",
   "type": "module",

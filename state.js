@@ -500,6 +500,9 @@ function normYanCard(c) {
   // who / speaker 会进徽章和 aria-label：不是字符串就整个不给（宁可少一枚签）
   if (typeof c.who === "string" && c.who.trim()) o.who = c.who.trim().slice(0, 20);
   if (typeof c.speaker === "string" && c.speaker.trim()) o.speaker = c.speaker.trim().slice(0, 20);
+  // 手动改过文字后记住最初那句：同一段聊天再次导入时不把旧稿捞回来。
+  if (typeof c.sourceLine === "string" && c.sourceLine.trim() && c.sourceLine.trim() !== line)
+    o.sourceLine = c.sourceLine.trim().slice(0, 500);
   return o;
 }
 /** 笺册的一行。这一处不洗是会**抛**的：null 让 renderMe 在 a.type 上取属性，
