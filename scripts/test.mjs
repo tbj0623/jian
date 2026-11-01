@@ -6,7 +6,7 @@
  *                       （赶时间可以 `python test/gate_selfcheck.py --only 关键词` 只跑新加的那几条）
  *   npm run test:e2e    六道浏览器全流程（e2e / e2e_gateway / contrast / offline / perf /
  *                       dead_controls，要本机 Edge）
- *   npm run test:v06    0.6.0 新增的八道浏览器门（smoke / light_audit / 六条 lane）——
+ *   npm run test:v06    新功能的浏览器门（含加密备份、无障碍与言笺修改）——
  *                       比 test:e2e 快得多，改完任何一个模块先跑这个
  *   npm run test:pkg    只验构建产物：www / 安卓资产 / sw 清单 / 载荷重量 / APK 与 AAB 里是哪版前端
  *   npm run audit       差分 fuzz 深扫，1400 例，要求漂移归零；
@@ -37,6 +37,7 @@ const FAST = [
   ['anchors', PY, ['test/gate_selfcheck.py', '--preflight']],
   ['engine.test', 'node', ['test/engine.test.mjs']],
   ['hardening', 'node', ['test/hardening.test.mjs']],
+  ['backup_crypto', 'node', ['test/backup_crypto.test.mjs']],
   ['consistency', PY, ['test/consistency.py']],
   ['gateway_http', PY, ['test/gateway_http.py']],
   // 跨产物的一道门：清单里的 allowBackup 与商店材料里的隐私政策得同真同假
@@ -66,7 +67,7 @@ const E2E = [
   // 「按下去静默什么都不说」是整片扫出来的结构不变量，和第 47 轮键盘、第 39 轮触摸尺寸同一家族
   ['dead_controls', PY, ['test/dead_controls.playwright.py']],
 ];
-// 0.6.0 这一版的八道门：一次装完、全是 Playwright、没有一道依赖网络或真机。
+// 0.7.0 这一版含数据保险箱的浏览器门：一次装完、全是 Playwright、没有一道依赖网络或真机。
 // 为什么单列一档而不塞进 E2E：E2E 那六道老的加起来要 20 多分钟（e2e 一套就 400KB 断言），
 // 而这一档全程不到三分钟——改完一个模块想立刻知道有没有砸掉东西，跑这个才对。
 // 顺序有讲究：smoke 与 light_audit 是「全屏扫」的粗网，先跑；六条 lane 是细网，后跑。
@@ -79,6 +80,7 @@ const V06 = [
   ['wei_v06', PY, ['test/wei_v06.playwright.py']],
   ['yan_v06', PY, ['test/yan_v06.playwright.py']],
   ['yan_edit', PY, ['test/yan_edit.playwright.py']],
+  ['backup_v07', PY, ['test/backup_v07.playwright.py']],
   ['pu_v06', PY, ['test/stats_v06.playwright.py']],
   // 长图 lane：四张 1080×1920 的纸（单品 / 搭配 / 摘录 / 年度）画不画得出来，
   // 以及**夜里存出来还是白天的纸**——那一条只有真的画一遍、量一次像素才验得到。
@@ -457,7 +459,7 @@ function main() {
   if (which === 'ship') results = group('上架前：已发布的政策页 == 本地源（要联网、要 gh 登录）', SHIP);
   if (which === 'fast' || which === 'all') results = results.concat(group('快速守门', FAST));
   if (which === 'v06' || which === 'all') results = results.concat(group('0.6.0 浏览器门（要本机 Edge）', V06));
-  // v06 那八道也进 all：只跑 fast+e2e 会漏掉这一版新加的全部界面断言
+  // 新功能浏览器门也进 all：只跑 fast+e2e 会漏掉这一版新加的全部界面断言
   if (which === 'gate' || which === 'all') results = results.concat(group('守门自检（只改一处必须炸）', GATE));
   if (which === 'e2e' || which === 'all') results = results.concat(group('端到端（要本机 Edge）', E2E));
   if (which === 'audit' || which === 'all') results = results.concat(audit());

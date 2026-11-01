@@ -30,6 +30,7 @@ const files = [
   'yi.js',
   'wei.js',
   'yan.js',
+  'backup-crypto.js',
   'me.js',
   'app.js',
   'theme.js',

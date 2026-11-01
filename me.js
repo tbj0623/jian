@@ -213,7 +213,7 @@ function renderMeHealth() {
         ${doneYan ? `<button type="button" class="chip" id="mhCleanYan">清掉已办完的 ${doneYan} 条言笺</button>` : ""}
         <button type="button" class="chip" id="mhExport">导出备份</button>
       </div>
-      <p class="tiny">导出的那份 JSON 里含价格、私人记录和全部设置——它是给你自己留的，别随手发出去。</p>
+      <p class="tiny">普通 JSON 备份没有加密，含价格和私人记录。想保护文件，请到「数据与备份」选加密备份。</p>
     </div>`;
   const cy = $("#mhCleanYan");
   if (cy) cy.onclick = () => {
@@ -286,9 +286,25 @@ function layoutMe() {
   const backupNote = document.createElement("p");
   backupNote.className = "tiny";
   backupNote.id = "backupNote";
-  backupNote.textContent = `备份是一个 JSON 文件，${BACKUP_WHAT}（柜子、言笺、笺册、设置都在里面）。`;
+  backupNote.textContent = `普通 JSON 备份不加密，${BACKUP_WHAT}（柜子、言笺、笺册、设置都在里面）。要私密保存，请用下面的加密备份。`;
+  const vaultBox = document.createElement("details");
+  vaultBox.id = "vaultBox";
+  vaultBox.className = "vault-box";
+  vaultBox.innerHTML = `<summary>加密备份 · 给私人记录上锁</summary>
+    <p class="tiny">离线 AES-256-GCM 加密，密码只在这次操作中使用，不发送、不保存。密码忘了无法恢复，请自行保管。</p>
+    <label class="tiny" for="vaultPass">备份密码（至少 10 个字符）</label>
+    <input id="vaultPass" type="password" autocomplete="off" minlength="10" maxlength="256" placeholder="输入备份密码" />
+    <label class="tiny" for="vaultConfirm">再次输入密码（仅导出时需要）</label>
+    <input id="vaultConfirm" type="password" autocomplete="off" minlength="10" maxlength="256" placeholder="再次确认密码" />
+    <div class="vault-actions">
+      <button type="button" class="btn ghost" id="vaultExport">导出加密备份</button>
+      <button type="button" class="btn" id="vaultRestore" hidden>解密并恢复</button>
+    </div>
+    <p class="tiny" id="vaultStatus" role="status" aria-live="polite">导入加密 JSON 后，会在这里提示输入原密码；普通备份仍可直接导入。</p>`;
   const dataSec = sec("meSecData", "数据与备份",
-    [storageNote, exportRow, backupNote, privacy, gap(), reset]);
+    [storageNote, exportRow, backupNote, vaultBox, privacy, gap(), reset]);
+  vaultBox.querySelector("#vaultExport").onclick = exportEncryptedData;
+  vaultBox.querySelector("#vaultRestore").onclick = decryptPendingBackup;
 
   const netSec = sec("meSecNet", "", [apiLabel, apiInput, gap(), saveApi, apiState, apiModel]);
 
@@ -687,16 +703,104 @@ async function exportData() {
   toast(doneMsg("导出备份") + "。" + BACKUP_WHAT, 5200);
 }
 
+// 加密文件只停留在此页的内存里；换页、重载不留口令和待解密正文。
+let pendingEncryptedBackup = null;
+let vaultBusy = false;
+function vaultSay(message) {
+  const target = $("#vaultStatus");
+  if (target) target.textContent = message;
+  toast(message, 4800);
+}
+async function exportEncryptedData() {
+  if (vaultBusy) return;
+  const passEl = $("#vaultPass"), confirmEl = $("#vaultConfirm"), button = $("#vaultExport");
+  if (!passEl || !confirmEl) return;
+  const pass = passEl.value;
+  if (pass.length < 10 || pass.length > 256) return vaultSay("密码至少 10 个字符，最多 256 个");
+  if (pass !== confirmEl.value) return vaultSay("两次输入的密码不一致，没有导出");
+  vaultBusy = true;
+  if (button) button.disabled = true;
+  try {
+    const savedAt = Date.now();
+    const body = JSON.stringify(Object.assign({ savedAt }, state));
+    const sealed = JSON.stringify(await JianVault.encrypt(body, pass, savedAt), null, 2);
+    if (hasNative()) {
+      const d = new Date(savedAt);
+      const ymd = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
+      await nativeShareFile(`jian-private-${ymd}.json`, sealed, { directory: "Documents", encoding: "UTF8" });
+    } else {
+      const blob = new Blob([sealed], { type: "application/json" });
+      const link = document.createElement("a");
+      link.download = `笺-加密备份-${dayStr(savedAt)}.json`;
+      link.href = URL.createObjectURL(blob);
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(link.href), 4000);
+    }
+    backupAtSet(savedAt);
+    vaultSay(doneMsg("导出加密备份") + "。文件已加密，密码忘记无法恢复");
+  } catch (e) {
+    console.warn("encrypted backup", e);
+    vaultSay(hasNative() && !/密码|加密|数据/.test(String(e.message)) ? SHARE_FAILED : String(e.message || "加密导出失败"));
+  } finally {
+    // 绝不写入 localStorage / sessionStorage，操作结束抹掉输入框。
+    passEl.value = "";
+    confirmEl.value = "";
+    vaultBusy = false;
+    if (button) button.disabled = false;
+  }
+}
+async function decryptPendingBackup() {
+  if (vaultBusy || !pendingEncryptedBackup) return vaultSay("先按「导入备份」选择加密 JSON");
+  const passEl = $("#vaultPass"), button = $("#vaultRestore");
+  const pass = passEl ? passEl.value : "";
+  if (!pass) return vaultSay("请输入导出时设下的原密码");
+  vaultBusy = true;
+  if (button) button.disabled = true;
+  try {
+    const plain = await JianVault.decrypt(pendingEncryptedBackup, pass);
+    const obj = JSON.parse(plain);
+    const ok = await applyBackupObject(obj);
+    if (!ok) vaultSay("解密成功，但备份结构不完整；原数据没有变化");
+  } catch (e) {
+    vaultSay(e instanceof SyntaxError ? "解密后的备份不是有效 JSON；原数据没有变化"
+      : String(e.message || "解密失败；原数据没有变化"));
+  } finally {
+    if (passEl) passEl.value = "";
+    vaultBusy = false;
+    if (button) button.disabled = false;
+  }
+}
 function importData(file) {
+  if (vaultBusy) return vaultSay("正在加密或解密，请稍后再选择文件");
+  // 新文件一选，旧的待解密文件立即作废；不能让按钮误恢复上一次选的那份。
+  pendingEncryptedBackup = null;
+  const oldRestore = $("#vaultRestore");
+  if (oldRestore) oldRestore.hidden = true;
+  if (!file || file.size > 16 * 1024 * 1024) return vaultSay("备份文件过大（上限 16 MB），原数据没有变化");
   const fr = new FileReader();
   fr.onload = async () => {
-    const reject = () => toast("这不是笺的备份文件，原数据没动");
     let obj;
-    try {
-      obj = JSON.parse(fr.result);
-    } catch (e) {
-      return reject();
+    try { obj = JSON.parse(fr.result); }
+    catch (_) { return vaultSay("这不是有效 JSON 备份，原数据没有变化"); }
+    if (JianVault.isEnvelope(obj)) {
+      try { JianVault.validate(obj); }
+      catch (e) { return vaultSay(String(e.message)); }
+      pendingEncryptedBackup = obj;
+      const box = $("#vaultBox"), action = $("#vaultRestore"), pass = $("#vaultPass");
+      if (box) box.open = true;
+      if (action) action.hidden = false;
+      vaultSay("这是加密备份。请输入原密码，按「解密并恢复」；现有数据尚未改变");
+      if (pass) pass.focus();
+      return;
     }
+    await applyBackupObject(obj);
+  };
+  fr.onerror = () => toast("文件没读出来");
+  fr.readAsText(file);
+}
+
+async function applyBackupObject(obj) {
+    const reject = () => { toast("这不是笺的备份文件，原数据没动"); return false; };
     // 先验货再落盘。以前是「是个 object 就 setItem」，数组也照样过；形状不对时 reload 后
     // load()→migrate() 返回 null，用户看到的是回到出厂示例柜，真实柜子已经被覆盖掉了。
     // 查的必须是原始 obj 而不是 migrate() 的结果：migrate/normalizeState 会把缺字段补成
@@ -729,7 +833,5 @@ function importData(file) {
     // 系统里那份还是旧的，哪天被系统清一次就整台退回导入前。所以先上一膛再走。
     await flushNativeBackup();
     location.reload();
-  };
-  fr.onerror = () => toast("文件没读出来");
-  fr.readAsText(file);
+    return true;
 }

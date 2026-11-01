@@ -29,6 +29,7 @@ jobs:
         run: |
           node test/engine.test.mjs
           node test/hardening.test.mjs
+          node test/backup_crypto.test.mjs
       - name: Build static H5
         run: |
           node scripts/build-www.mjs

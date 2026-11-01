@@ -205,6 +205,33 @@
 /* 备份那一行下面的说明：按之前就该知道那份文件里有什么，不是按完才发现 */
 #backupNote { margin-top: 8px; line-height: 1.7; }
 
+/* 数据保险箱：不开时只占一行，打开后所有操作仍在「数据与备份」内。
+   密码框不依赖浏览器默认样式，夜纸和系统大字号也能看清。 */
+.vault-box {
+  margin-top: 14px; padding: 0 14px 14px; border: 1px solid var(--line);
+  border-radius: 12px; background: var(--paper-2); min-width: 0;
+}
+.vault-box summary {
+  min-height: 48px; display: flex; align-items: center; cursor: pointer;
+  font-size: calc(14px * var(--fs-scale, 1)); color: var(--ink);
+  font-weight: 600; line-height: 1.5; padding: 9px 0;
+}
+.vault-box summary::after { content: "＋"; margin-left: auto; padding-left: 8px; color: var(--seal); font-size: 18px; }
+.vault-box[open] summary::after { content: "−"; }
+.vault-box summary:focus-visible { outline: 2px solid var(--seal); outline-offset: 3px; }
+.vault-box p { line-height: 1.65; margin: 8px 0; overflow-wrap: anywhere; }
+.vault-box label { display: block; margin: 12px 0 5px; }
+.vault-box input {
+  display: block; width: 100%; min-width: 0; min-height: 44px; box-sizing: border-box;
+  padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px;
+  color: var(--ink); background: var(--paper); font: inherit;
+}
+.vault-box input:focus-visible { outline: 2px solid var(--seal); outline-offset: 2px; }
+.vault-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.vault-actions .btn { min-height: 44px; flex: 1 1 130px; }
+.vault-actions [hidden] { display: none; }
+#vaultStatus { margin-bottom: 0; }
+
 /* 窄屏（320-360）上四个数字那排：格子太窄就把名字那一列压掉一点，
    字号跟着掉一档——数字仍然认得清，别让「笺册」两个字换成两行。 */
 @media (max-width: 359px) {

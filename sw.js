@@ -11,14 +11,14 @@
    不一致直接不给打包）。版本一变，activate 就清掉旧缓存。
    `file://` 下根本不注册（见 app.js），双击打开这条老用法不受任何影响。
  */
-const VERSION = "0.6.2";
+const VERSION = "0.7.0";
 const CACHE = "jian-" + VERSION;
 
 /* 这份清单要和 build-www.mjs 的白名单对齐，npm run check 会盯。 */
 const SHELL = [
   "./", "./index.html", "./styles.css", "./config.js", "./engine.js", "./api.js",
   "./state.js", "./ui.js", "./card.js", "./card-year.js", "./card-long.js",
-  "./yi.js", "./wei.js", "./yan.js", "./me.js",
+  "./yi.js", "./wei.js", "./yan.js", "./backup-crypto.js", "./me.js",
   "./app.js", "./theme.js", "./wardrobe.js", "./cookbook.js", "./market.js", "./remind.js",
   "./stats.js", "./achievements.js", "./settings.js", "./wire.js", "./share.js", "./today.js", "./styles-v06.css", "./styles-yi.css", "./styles-wei.css", "./styles-yan.css",
   "./styles-stats.css", "./styles-me.css", "./manifest.json",

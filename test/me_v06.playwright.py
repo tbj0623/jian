@@ -403,7 +403,7 @@ with sync_playwright() as p:
     page.wait_for_timeout(200)
     check("备份那一行下面明说含价格与私人记录", page.evaluate(
         "() => document.querySelector('#backupNote').textContent"), 
-        "备份是一个 JSON 文件，备份里含价格与私人记录（柜子、言笺、笺册、设置都在里面）。")
+        "普通 JSON 备份不加密，备份里含价格与私人记录（柜子、言笺、笺册、设置都在里面）。要私密保存，请用下面的加密备份。")
 
     # 浏览器那一路：把 a.click() 接下来，读到那份文件
     page.evaluate("""() => {
