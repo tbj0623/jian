@@ -301,10 +301,20 @@ function layoutMe() {
       <button type="button" class="btn" id="vaultRestore" hidden>解密并恢复</button>
     </div>
     <p class="tiny" id="vaultStatus" role="status" aria-live="polite">导入加密 JSON 后，会在这里提示输入原密码；普通备份仍可直接导入。</p>`;
+  const recoveryBox = document.createElement("details");
+  recoveryBox.id = "recoveryBox";
+  recoveryBox.className = "vault-box recovery-box";
+  recoveryBox.innerHTML = `<summary>本机恢复点 · 给整份笺留底</summary>
+    <p class="tiny">独立存到这台设备的 IndexedDB，包含衣服照片、言笺、笺册和设置。最多保留最近 5 份，每份校验完整性。导入备份前会自动留一份。</p>
+    <p class="tiny">恢复点不加密、不会上传；浏览器清理网站数据时仍可能丢失。换设备或长期保管请用上方加密备份文件。</p>
+    <div class="vault-actions"><button type="button" class="btn ghost" id="recoverySave">现在留一份</button></div>
+    <p class="tiny" id="recoveryStatus" role="status" aria-live="polite">展开后检查本机存过的恢复点。</p>
+    <div id="recoveryList" class="recovery-list"></div>`;
   const dataSec = sec("meSecData", "数据与备份",
-    [storageNote, exportRow, backupNote, vaultBox, privacy, gap(), reset]);
+    [storageNote, exportRow, backupNote, vaultBox, recoveryBox, privacy, gap(), reset]);
   vaultBox.querySelector("#vaultExport").onclick = exportEncryptedData;
   vaultBox.querySelector("#vaultRestore").onclick = decryptPendingBackup;
+  RecoveryPoints.attach(recoveryBox);
 
   const netSec = sec("meSecNet", "", [apiLabel, apiInput, gap(), saveApi, apiState, apiModel]);
 
@@ -816,6 +826,15 @@ async function applyBackupObject(obj) {
     let text = null;
     try { text = JSON.stringify(migrate(obj)); } catch (e) { return reject(); }
     const prev = (() => { try { return localStorage.getItem(KEY) || ""; } catch (_) { return ""; } })();
+    // 覆盖式导入前先留独立恢复点。IndexedDB 不可用时保留旧的 sessionStorage 撤销路径；
+    // 可用却写失败（如配额已满）则停在原地，让用户先导出文件，不能冒险覆盖。
+    if (prev && RecoveryPoints.available()) {
+      try { await RecoveryPoints.capture("导入前"); }
+      catch (e) {
+        toast("导入前恢复点没存成，数据未改变。请先导出备份：" + String(e.message || e), 6500);
+        return false;
+      }
+    }
     try {
       writeStore(text);   // 走唯一落盘入口：它先取消排在那次防抖里的旧 state
     } catch (e) {

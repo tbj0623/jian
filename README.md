@@ -5,12 +5,12 @@
 
 **不联网也能用。** 网关是可选的：填了它，多「认照片」和「抄截图」两条路；不填，三张笺照常出结论。
 
-**直接体验：** [网页版](https://tbj0623.github.io/jian/) · [安卓 APK / AAB 下载](https://github.com/tbj0623/jian/releases/tag/v0.8.0) · [隐私政策](https://tbj0623.github.io/jian-privacy/)。当前为 GitHub 公开测试版，尚未通过 Google Play 上架审核。
+**直接体验：** [网页版](https://tbj0623.github.io/jian/) · [安卓 APK / AAB 下载](https://github.com/tbj0623/jian/releases/tag/v0.9.0) · [隐私政策](https://tbj0623.github.io/jian-privacy/)。当前为 GitHub 公开测试版，尚未通过 Google Play 上架审核。
 
 **开源：** 自有源码按 [MIT License](LICENSE) 发布；贡献说明见 [CONTRIBUTING.md](CONTRIBUTING.md)，安全报告见 [SECURITY.md](SECURITY.md)。模型密钥、Android 签名文件、真实用户备份及第三方网页抓取材料不属于公开源码。仓库不提供第三方模型额度或托管网关。
 
-- 版本 **0.8.0** / `versionCode 32` / `minSdk 24` / `targetSdk 36`
-- `index.html` 555 行：**25 个 `<script>`**、**7 个样式表**（另有 manifest + 2 个图标，共 10 个 `<link>`）、
+- 版本 **0.9.0** / `versionCode 33` / `minSdk 24` / `targetSdk 36`
+- `index.html` 555 行：**26 个 `<script>`**、**7 个样式表**（另有 manifest + 2 个图标，共 10 个 `<link>`）、
   **17 屏**；**8 个 Capacitor 插件**
 - 菜库 **63 道**、成就 **30 枚**、桌面快捷方式 **5 枚**、长图 **6 种**（全部 1080×1920）
 
@@ -20,7 +20,7 @@
 
 ### 一、双击 `index.html`（最快，什么都不用装）
 
-不需要 Node、不需要构建、不联网。数据存在本机 localStorage。
+不需要 Node、不需要构建、不联网。日常数据存在本机 localStorage；你主动创建的恢复点另存于同源 IndexedDB。
 
 窄到 360 宽、宽到桌面都能用：≥900px 时中间那一栏立成桌上的一张纸，底栏跟着收进列宽。
 用 `http(s)` 打开时才会注册 `sw.js`（预缓存整份白名单，缓存名跟着版本号走），
@@ -206,6 +206,8 @@ adb install -r android\app\build\outputs\apk\release\app-release.apk
 
 **全局搜索直达（0.8.0）**：在「册 → 找东西」搜衣服、言笺、笺册、菜谱、摘录或提醒，点任意结果会直接定位到那条内容，而不只是进入模块首页。归档言笺会打开归档；旧笺册自动摊开隐藏的存档和全文；摘录会展开折叠本；已办提醒也能找回。结果支持 ↓ / ↑、回车和 Esc（中文输入法组合输入期间不会抢键），命中项有焦点标识。若结果超过展示上限，会明示已展示数与总数；这只是搜索列表截断，数据不会删除。
 
+**本机恢复点（0.9.0）**：在「册 → 数据与备份」展开「本机恢复点」，手动为完整数据留一份快照，最多保存最近 5 份；普通或加密备份覆盖导入前也会自动留档。每份包含照片和记录，并以 SHA-256 校验；可按时间恢复或永久删除。恢复点放在当前设备的 IndexedDB，**没有加密、浏览器清理网站数据时也会消失**；它不是异机备份，务必另存加密 JSON。为防止导入时丢数据，恢复点明确可用却写入失败时，导入会停止，提示先导出文件；清空本地数据会连恢复点一并擦除。
+
 **数据保险箱（0.7.0）**：在「册 → 数据与备份」展开「加密备份」，输入至少 10 字符的密码并再次确认，导出只有持有密码才能打开的 JSON 文件。全部在本机通过 WebCrypto AES-256-GCM/PBKDF2-SHA-256 运行；每次使用独立随机盐与 IV。它保护的是**手动导出的文件**：不会自动上传、不会保存密码，本机 localStorage 仍按原来的方式存储。**密码忘记无法找回**，务必连密码和备份一起妥善保管（不要放在同一个公开位置）。
 
 恢复时仍按「导入备份」选文件：普通 JSON 直接导入；加密 JSON 会提示输入原密码后解密，文件遭篡改或密码错误不替换本机数据。这个功能不等于多设备同步，也不代替定期备份到你自己管理的位置。
@@ -283,10 +285,11 @@ npm run providers     # 逐家真跑一遍认衣服 / 抄截图（要网络与�
 
 | 路径 | 职责 |
 |---|---|
-| `index.html` | 骨架：17 个 `<section class="screen">`、25 个 `<script>`、10 个 `<link>` |
+| `index.html` | 骨架：17 个 `<section class="screen">`、26 个 `<script>`、10 个 `<link>` |
 | `config.js` | `JIAN_CONFIG`：`endpoint` 留空 = 全本地；`version` 是界面页脚唯一的版本号来源 |
 | `engine.js` | 本地规则引擎：色差判定、菜库（63 道）、菜与话的切分、时间解析、上菜顺序 |
 | `api.js` | 统一网关 `JianAPI`，失败**自动回落本地并说清是谁算的** |
+| `recovery.js` | 本机完整恢复点：IndexedDB 存储、SHA-256 校验、导入前自动留档与五份轮换 |
 | `state.js` | 数据层：localStorage、schema 迁移（`SCHEMA = 3`）、导入数据逐项钳位、17 处裁剪上限、钱包 |
 | `theme.js` | 主题 / 字号 / 动效 / 印章款式 → 写到 `<html data-*>` |
 | `ui.js` | 共用件：`esc` / toast / 遮罩 / 复制 / 导航（`show()` / `RENDER` / `SUB_OF`）/ 原生 chrome |

@@ -83,6 +83,8 @@ const V06 = [
   ['backup_v07', PY, ['test/backup_v07.playwright.py']],
   // 搜索直达：归档/笺册折叠/摘录排序/提醒下标与方向键都在真实 DOM 上验证。
   ['search_v08', PY, ['test/search_v08.playwright.py']],
+  // v0.9.0 本机恢复点：照片、摘要校验、导入前自动留档、恢复及隐私清空。
+  ['recovery_v09', PY, ['test/recovery_v09.playwright.py']],
   ['pu_v06', PY, ['test/stats_v06.playwright.py']],
   // 长图 lane：四张 1080×1920 的纸（单品 / 搭配 / 摘录 / 年度）画不画得出来，
   // 以及**夜里存出来还是白天的纸**——那一条只有真的画一遍、量一次像素才验得到。

@@ -232,6 +232,18 @@
 .vault-actions [hidden] { display: none; }
 #vaultStatus { margin-bottom: 0; }
 
+/* 本机恢复点最多五行。日期与操作自动折行，320px 窄屏也不挤出页面。 */
+.recovery-list { display: grid; gap: 10px; margin-top: 12px; }
+.recovery-row {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: 8px 12px; padding: 12px 0; border-top: 1px solid var(--line); min-width: 0;
+}
+.recovery-row .grow { flex: 1 1 165px; min-width: 0; overflow-wrap: anywhere; }
+.recovery-row .grow b, .recovery-row .grow .tiny { display: block; }
+.recovery-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.recovery-actions .chip { min-height: 44px; }
+#recoveryStatus { margin: 12px 0 0; }
+
 /* 全局搜索直达后，让目光和读屏器都落在同一条。只标焦点行，不改数据。 */
 .search-landmark, .search-landmark:focus {
   outline: 2px solid var(--seal);

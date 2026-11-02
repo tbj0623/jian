@@ -810,7 +810,6 @@ MUTATIONS = [
      "    } catch (_) { }",
      "    // 不占这个槽", [E2E]),
     ("写盘还没成功就先占槽：下次开机凭空一句「已导入」，柜子里却一条都没变", ME,
-     "    const prev = (() => { try { return localStorage.getItem(KEY) || \"\"; } catch (_) { return \"\"; } })();\n"
      "    try {\n"
      "      writeStore(text);   // 走唯一落盘入口：它先取消排在那次防抖里的旧 state\n"
      "    } catch (e) {\n"

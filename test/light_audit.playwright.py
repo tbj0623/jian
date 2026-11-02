@@ -224,6 +224,20 @@ def main():
             got = {}
             for theme in ("light", "dark"):
                 pg.evaluate("(t) => { THEME.set('theme', t); }", theme)
+                # Windows / Edge 设备繁忙时，固定 120 ms 可能采到上一套主题：
+                # 同时校验根节点和 body 真正解析出的墨色、纸色，避免偶发假红。
+                pg.wait_for_function("""(t) => {
+                  const root = document.documentElement;
+                  if (root.dataset.theme !== t) return false;
+                  const probe = document.createElement('span');
+                  probe.style.cssText = 'color:var(--ink);background-color:var(--paper)';
+                  document.body.appendChild(probe);
+                  const sample = getComputedStyle(probe), body = getComputedStyle(document.body);
+                  const stable = sample.color === body.color &&
+                    sample.backgroundColor === body.backgroundColor;
+                  probe.remove();
+                  return stable;
+                }""", arg=theme, timeout=5000)
                 pg.wait_for_timeout(120)
                 pg.evaluate("(s) => show(s)", screen)
                 pg.wait_for_timeout(220)

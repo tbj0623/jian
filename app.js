@@ -383,6 +383,9 @@ async function boot() {
   $("#fileImport").onchange = (e) => { const f = e.target.files[0]; if (f) importData(f); e.target.value = ""; };
   $("#reset").onclick = async () => {
     if (!confirm("清空本机所有笺？柜子和笺册都会没。")) return;
+    // 本机恢复点同样属于私人数据。若删除失败，则取消清空，避免留下隐蔽副本。
+    try { await RecoveryPoints.clear(); }
+    catch (e) { toast("恢复点没能清除，已取消清空：" + String(e.message || e), 6000); return; }
     // 这是全 App 最狠的一下，而且紧跟着就 reload。清空前把整份 JSON 塞进 sessionStorage
     // ——它活得过一次刷新——回来就还有一次撤销。
     try { sessionStorage.setItem(KEY + ".undo", localStorage.getItem(KEY) || ""); } catch (_) {}
